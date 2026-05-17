@@ -661,10 +661,10 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
       doc
         .font("Helvetica")
         .fontSize(11)
-        .text(`Semesters: ${room.semesters.join(", ")}`);
+        .text(`Semesters: ${(room.semesters || []).join(", ")}`);
       doc.text(`Student Count: ${room.studentCount}`);
       doc.text("USN Ranges:");
-      for (const range of room.usnRanges) {
+      for (const range of (room.usnRanges || [])) {
         doc.text(`  • ${range}`);
       }
       doc.moveDown(1);
