@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIML Seat Allotment System</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+
+    <!-- ============================================================ -->
+    <!-- LOGIN SECTION -->
+    <!-- Shown when user is not authenticated -->
+    <!-- ============================================================ -->
+    <section id="login-section" class="page">
+      <div class="login-bg">
+        <div class="grid-overlay"></div>
+      </div>
+      <div class="login-card">
+        <div class="login-badge">INTERNAL EXAMINATION SYSTEM</div>
+        <h1 class="login-title">AIML<br /><span>Seat Allotment</span></h1>
+        <p class="login-sub">
+          Automate seating arrangements for internal exams.<br />Faculty access only.
+        </p>
+        <a href="/auth/google" class="btn-google">
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13 17.8 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.2-10 7.2-17z"/>
+            <path fill="#FBBC05" d="M10.6 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.6 2.5 10.9l8.1-6.2z"/>
+            <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.2-13.4-9.9l-8.1 6.2C6.6 42.6 14.7 48 24 48z"/>
+          </svg>
+          Sign in with Google
+        </a>
+        <p class="login-note">Only authorized college accounts can access this system.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- MAIN APP (shown after login) -->
+    <!-- ============================================================ -->
+    <div id="app" class="hidden">
+
+      <!-- SIDEBAR NAVIGATION -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-icon">A</div>
+          <div>
+            <div class="brand-name">AIML</div>
+            <div class="brand-sub">Seat Allotment</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-page="dashboard">
+            <span class="nav-icon">⬡</span> Dashboard
+          </button>
+          <button class="nav-item" data-page="create">
+            <span class="nav-icon">+</span> New Arrangement
+          </button>
+          <button class="nav-item" data-page="rooms">
+            <span class="nav-icon">▣</span> Room Management
+          </button>
+          <button class="nav-item" data-page="history">
+            <span class="nav-icon">◷</span> History
+          </button>
+        </nav>
+
+        <div class="sidebar-user" id="user-info">
+          <img id="user-photo" src="" alt="User" />
+          <div>
+            <div id="user-name" class="user-name">Loading...</div>
+            <div id="user-email" class="user-email"></div>
+          </div>
+          <a href="/auth/logout" class="logout-btn" title="Logout">↩</a>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT AREA -->
+      <main class="main-content">
+
+        <!-- ---- DASHBOARD PAGE ---- -->
+        <div id="page-dashboard" class="page-content active">
+          <div class="page-header">
+            <h2>Dashboard</h2>
+            <p>Overview of your examination seating system</p>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">▣</div>
+              <div class="stat-value" id="stat-rooms">—</div>
+              <div class="stat-label">Total Rooms</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⬡</div>
+              <div class="stat-value" id="stat-enabled">—</div>
+              <div class="stat-label">Enabled Rooms</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">◷</div>
+              <div class="stat-value" id="stat-allocs">—</div>
+              <div class="stat-label">Past Allocations</div>
+            </div>
+          </div>
+
+          <div class="dash-actions">
+            <button class="btn-primary" onclick="showPage('create')">
+              + Create New Arrangement
+            </button>
+            <button class="btn-outline" onclick="showPage('history')">
+              View History
+            </button>
+          </div>
+
+          <div class="recent-section">
+            <h3>Recent Allocations</h3>
+            <div id="recent-list" class="recent-list">
+              <p class="empty-state">No allocations yet. Create your first one!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- CREATE ARRANGEMENT PAGE ---- -->
+        <div id="page-create" class="page-content">
+          <div class="page-header">
+            <h2>New Seating Arrangement</h2>
+            <p>Fill in exam details and upload student files</p>
+          </div>
+
+          <form id="create-form" class="form-card" onsubmit="submitAllocation(event)">
+
+            <!-- Exam Details -->
+            <div class="form-section">
+              <h3 class="section-title">① Exam Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Exam Name</label>
+                  <input type="text" id="examName" placeholder="e.g. Internal Assessment 1" required />
+                </div>
+                <div class="form-group">
+                  <label>Date</label>
+                  <input type="date" id="examDate" required />
+                </div>
+                <div class="form-group">
+                  <label>Session</label>
+                  <select id="examSession" required>
+                    <option value="">Select...</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Student Files -->
+            <div class="form-section">
+              <h3 class="section-title">② Student Files (Excel/CSV)</h3>
+              <p class="form-hint">
+                Upload one file per semester. File name must start with semester code.<br />
+                Examples: <code>II_sem.xlsx</code>, <code>IV_sem.csv</code>, <code>VI_sem.xlsx</code><br />
+                Each file must have columns: <strong>Name</strong> and <strong>USN</strong>
+              </p>
+              <div class="file-drop-zone" id="drop-zone">
+                <div class="drop-icon">📂</div>
+                <p>Drag & drop files here or click to browse</p>
+                <input
+                  type="file"
+                  id="semesterFiles"
+                  name="semesterFiles"
+                  multiple
+                  accept=".xlsx,.xls,.csv"
+                  onchange="handleFileSelect(this)"
+                />
+              </div>
+              <div id="file-list" class="file-list"></div>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="allocate-btn">
+                🎯 Generate Seating Arrangement
+              </button>
+            </div>
+          </form>
+
+          <!-- Loading Indicator -->
+          <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Allocating seats... please wait</p>
+          </div>
+
+          <!-- ---- OUTPUT PREVIEW SECTION ---- -->
+          <div id="output-section" class="output-section hidden">
+            <div class="page-header" style="margin-top: 2rem;">
+              <h2>Output Preview</h2>
+              <p id="output-exam-label"></p>
+            </div>
+
+            <!-- PDF Download Buttons -->
+            <div class="pdf-actions" id="pdf-actions">
+              <button class="btn-pdf" id="btn-notice-pdf">📋 Download Notice Board PDF</button>
+              <button class="btn-pdf" id="btn-seating-pdf">🪑 Download Seating Layout PDF</button>
+              <button class="btn-pdf" id="btn-attendance-pdf">✍️ Download Attendance Sheet PDF</button>
+            </div>
+
+            <!-- Tab navigation for output -->
+            <div class="output-tabs">
+              <button class="tab-btn active" data-tab="notice">Notice Board</button>
+              <button class="tab-btn" data-tab="seating">Seating Layout</button>
+              <button class="tab-btn" data-tab="attendance">Attendance</button>
+            </div>
+
+            <!-- Notice Board Tab -->
+            <div id="tab-notice" class="tab-content active">
+              <div id="notice-table-container"></div>
+            </div>
+
+            <!-- Seating Layout Tab -->
+            <div id="tab-seating" class="tab-content">
+              <div id="seating-container"></div>
+            </div>
+
+            <!-- Attendance Tab -->
+            <div id="tab-attendance" class="tab-content">
+              <div id="attendance-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- ROOM MANAGEMENT PAGE ---- -->
+        <div id="page-rooms" class="page-content">
+          <div class="page-header">
+            <h2>Room Management</h2>
+            <p>Add, edit, enable or disable examination rooms</p>
+          </div>
+
+          <!-- Add Room Form -->
+          <div class="form-card" style="max-width: 600px; margin-bottom: 2rem;">
+            <h3 class="section-title">Add New Room</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" id="newRoomNo" placeholder="e.g. M-501" />
+              </div>
+              <div class="form-group">
+                <label>Number of Benches</label>
+                <input type="number" id="newRoomBenches" placeholder="e.g. 16" min="1" />
+              </div>
+              <div class="form-group" style="justify-content: flex-end; align-items: flex-end;">
+                <button class="btn-primary" onclick="addRoom()">Add Room</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Room Table -->
+          <div class="table-card">
+            <table class="data-table" id="rooms-table">
+              <thead>
+                <tr>
+                  <th>Room No</th>
+                  <th>Benches</th>
+                  <th>Capacity (×3)</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rooms-tbody">
+                <tr><td colspan="5" class="empty-cell">Loading rooms...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ---- HISTORY PAGE ---- -->
+        <div id="page-history" class="page-content">
+          <div class="page-header">
+            <h2>Allocation History</h2>
+            <p>Browse, preview, and download past seating arrangements</p>
+          </div>
+
+          <div id="history-list" class="history-grid">
+            <p class="empty-state">No history found.</p>
+          </div>
+        </div>
+
+      </main>
+    </div><!-- end #app -->
+
+    <!-- ============================================================ -->
+    <!-- EDIT ROOM MODAL -->
+    <!-- ============================================================ -->
+    <div id="edit-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h3>Edit Room</h3>
+        <input type="hidden" id="edit-room-id" />
+        <div class="form-group">
+          <label>Room Number</label>
+          <input type="text" id="edit-room-no" />
+        </div>
+        <div class="form-group">
+          <label>Benches</label>
+          <input type="number" id="edit-room-benches" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Enabled</label>
+          <select id="edit-room-enabled">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="saveRoom()">Save</button>
+          <button class="btn-outline" onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
