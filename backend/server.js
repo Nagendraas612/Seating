@@ -432,46 +432,28 @@ function allocateSeats(semesterStudents, rooms) {
 
 function buildSummary(roomResults) {
   return roomResults.map((room) => {
-    const semMap = {};
-
+    const semMap = {}; // { semCode: [usns] }
     for (const bench of room.seating) {
       for (const pos of ["left", "middle", "right"]) {
-
         const s = bench[pos];
-
-        // SAFE CHECK
-        if (
-          !s ||
-          typeof s !== "object" ||
-          !s.usn ||
-          !s.semester
-        ) {
-          continue;
+        if (s) {
+          if (!semMap[s.semester]) semMap[s.semester] = [];
+          semMap[s.semester].push(s.usn);
         }
-
-        const sem = String(s.semester).trim();
-
-        // CREATE ARRAY SAFELY
-        if (!Array.isArray(semMap[sem])) {
-          semMap[sem] = [];
-        }
-
-        semMap[sem].push(s.usn);
       }
     }
 
     const semesters = Object.keys(semMap);
-
     const usnRanges = semesters.map((sem) => {
       const usns = semMap[sem].sort();
-
-      return `${sem}: ${usns[0]} → ${usns[usns.length - 1]}`;
+      return `${sem}: ${usns[0]} – ${usns[usns.length - 1]}`;
     });
+    const studentCount = semesters.reduce(
+      (sum, s) => sum + semMap[s].length,
+      0
+    );
 
-    return {
-      roomNo: room.roomNo,
-      summary: usnRanges.join(" | "),
-    };
+    return { roomNo: room.roomNo, semesters, usnRanges, studentCount };
   });
 }
 
@@ -661,8 +643,8 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
       doc
         .font("Helvetica")
         .fontSize(11)
-        .text(`Semesters: ${(room.semesters || []).join(", ")}`);
-      doc.text(`Student Count: ${room.studentCount}`);
+        .text(`Semesters: ${(room.semesters || []).join(", ") || "—"}`);
+      doc.text(`Student Count: ${room.studentCount || 0}`);
       doc.text("USN Ranges:");
       for (const range of (room.usnRanges || [])) {
         doc.text(`  • ${range}`);
