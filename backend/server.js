@@ -432,28 +432,56 @@ function allocateSeats(semesterStudents, rooms) {
 
 function buildSummary(roomResults) {
   return roomResults.map((room) => {
-    const semMap = {}; // { semCode: [usns] }
+
+    const semMap = {};
+
     for (const bench of room.seating) {
+
       for (const pos of ["left", "middle", "right"]) {
+
         const s = bench[pos];
-        if (s) {
-          if (!semMap[s.semester]) semMap[s.semester] = [];
-          semMap[s.semester].push(s.usn);
+
+        // Skip invalid seats safely
+        if (
+          !s ||
+          typeof s !== "object" ||
+          !s.usn ||
+          !s.semester
+        ) {
+          continue;
         }
+
+        const sem = String(s.semester).trim();
+
+        // Ensure array exists
+        if (!Array.isArray(semMap[sem])) {
+          semMap[sem] = [];
+        }
+
+        semMap[sem].push(s.usn);
       }
     }
 
     const semesters = Object.keys(semMap);
+
     const usnRanges = semesters.map((sem) => {
+
       const usns = semMap[sem].sort();
+
       return `${sem}: ${usns[0]} – ${usns[usns.length - 1]}`;
     });
+
     const studentCount = semesters.reduce(
-      (sum, s) => sum + semMap[s].length,
+      (sum, sem) => sum + semMap[sem].length,
       0
     );
 
-    return { roomNo: room.roomNo, semesters, usnRanges, studentCount };
+    return {
+      roomNo: room.roomNo,
+      semesters,
+      usnRanges,
+      studentCount,
+    };
   });
 }
 
