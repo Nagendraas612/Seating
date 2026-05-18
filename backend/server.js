@@ -790,16 +790,24 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "landscape" });
-    
+
+    // Once piped, we cannot send JSON errors — just log and destroy
     doc.on("error", (err) => {
       console.error("PDF generation error:", err);
-      res.status(500).json({ error: "PDF generation failed: " + err.message });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "PDF generation failed" });
+      } else {
+        res.end();
+      }
     });
-    
-    res.on("error", (err) => {
-      console.error("Response error:", err);
+
+    res.on("close", () => {
+      // Client disconnected — end the doc to prevent memory leaks
+      if (!doc.writableEnded) {
+        doc.end();
+      }
     });
-    
+
     doc.pipe(res);
 
     writePDFHeader(
@@ -816,7 +824,14 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
       return;
     }
 
-    for (const room of alloc.rooms) {
+    for (let roomIdx = 0; roomIdx < alloc.rooms.length; roomIdx++) {
+      const room = alloc.rooms[roomIdx];
+
+      // Start each room on a new page (except the first which follows the header)
+      if (roomIdx > 0) {
+        doc.addPage({ layout: "landscape" });
+      }
+
       doc
         .font("Helvetica-Bold")
         .fontSize(13)
@@ -829,28 +844,28 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
       const startX = pageMargin;
       let y = doc.y + 5;
 
-      // Header row
-      doc.font("Helvetica-Bold").fontSize(10);
-      doc.text("Bench", startX, y, { width: colWidths[0] });
-      doc.text("LEFT", startX + colWidths[0], y, { width: colWidths[1] });
-      doc.text("MIDDLE", startX + colWidths[0] + colWidths[1], y, {
-        width: colWidths[2],
-      });
-      doc.text(
-        "RIGHT",
-        startX + colWidths[0] + colWidths[1] + colWidths[2],
-        y,
-        { width: colWidths[3] }
-      );
-      y += 20;
+      // Draw table header
+      const drawTableHeader = () => {
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("Bench", startX, y, { width: colWidths[0] });
+        doc.text("LEFT", startX + colWidths[0], y, { width: colWidths[1] });
+        doc.text("MIDDLE", startX + colWidths[0] + colWidths[1], y, {
+          width: colWidths[2],
+        });
+        doc.text(
+          "RIGHT",
+          startX + colWidths[0] + colWidths[1] + colWidths[2],
+          y,
+          { width: colWidths[3] }
+        );
+        y += 20;
+        doc.moveTo(startX, y).lineTo(startX + 585, y).stroke();
+        y += 5;
+        doc.font("Helvetica").fontSize(9);
+      };
 
-      // Horizontal line
-      doc.moveTo(startX, y).lineTo(startX + 585, y).stroke();
-      y += 5;
+      drawTableHeader();
 
-      // Data rows
-      doc.font("Helvetica").fontSize(9);
-      
       if (room.seating && room.seating.length > 0) {
         for (const bench of room.seating) {
           const formatSeat = (s) => {
@@ -859,6 +874,14 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
           };
 
           const rowHeight = 30;
+
+          // Check if we need a new page BEFORE writing the row
+          if (y + rowHeight > 540) {
+            doc.addPage({ layout: "landscape" });
+            y = 40;
+            drawTableHeader();
+          }
+
           doc.text(`${bench.bench || "—"}`, startX, y, { width: colWidths[0] });
           doc.text(formatSeat(bench.left), startX + colWidths[0], y, {
             width: colWidths[1],
@@ -876,24 +899,20 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
             { width: colWidths[3] }
           );
           y += rowHeight;
-
-          // New page if near bottom
-          if (y > 520) {
-            doc.addPage({ layout: "landscape" });
-            y = 40;
-          }
         }
       } else {
         doc.text("No seating data", startX, y);
       }
-
-      doc.moveDown(1.5);
     }
 
     doc.end();
   } catch (err) {
     console.error("Seating PDF error:", err);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
   }
 });
 
@@ -912,12 +931,22 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
     );
 
     const doc = new PDFDocument({ margin: 50 });
-    
+
     doc.on("error", (err) => {
       console.error("PDF generation error:", err);
-      res.status(500).json({ error: "PDF generation failed" });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "PDF generation failed" });
+      } else {
+        res.end();
+      }
     });
-    
+
+    res.on("close", () => {
+      if (!doc.writableEnded) {
+        doc.end();
+      }
+    });
+
     doc.pipe(res);
 
     writePDFHeader(
@@ -934,7 +963,14 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
       return;
     }
 
-    for (const room of alloc.attendanceByRoom) {
+    for (let roomIdx = 0; roomIdx < alloc.attendanceByRoom.length; roomIdx++) {
+      const room = alloc.attendanceByRoom[roomIdx];
+
+      // Start each room on a new page (except the first)
+      if (roomIdx > 0) {
+        doc.addPage();
+      }
+
       doc
         .font("Helvetica-Bold")
         .fontSize(13)
@@ -946,22 +982,30 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
       const startX = pageMargin;
       let y = doc.y + 5;
 
-      doc.font("Helvetica-Bold").fontSize(10);
-      doc.text("S.No", startX, y, { width: 40 });
-      doc.text("USN", startX + 40, y, { width: 120 });
-      doc.text("Name", startX + 160, y, { width: 180 });
-      doc.text("Batch", startX + 340, y, { width: 40 });
-      doc.text("Signature", startX + 380, y, { width: 120 });
-      y += 18;
+      const drawAttendanceHeader = () => {
+        doc.font("Helvetica-Bold").fontSize(10);
+        doc.text("S.No", startX, y, { width: 40 });
+        doc.text("USN", startX + 40, y, { width: 120 });
+        doc.text("Name", startX + 160, y, { width: 180 });
+        doc.text("Batch", startX + 340, y, { width: 40 });
+        doc.text("Signature", startX + 380, y, { width: 120 });
+        y += 18;
+        doc.moveTo(startX, y).lineTo(startX + 500, y).stroke();
+        y += 4;
+        doc.font("Helvetica").fontSize(9);
+      };
 
-      // Horizontal line
-      doc.moveTo(startX, y).lineTo(startX + 500, y).stroke();
-      y += 4;
+      drawAttendanceHeader();
 
-      doc.font("Helvetica").fontSize(9);
-      
       if (room.students && room.students.length > 0) {
         room.students.forEach((student, idx) => {
+          // Check if we need a new page BEFORE writing the row
+          if (y + 20 > 720) {
+            doc.addPage();
+            y = 50;
+            drawAttendanceHeader();
+          }
+
           doc.text(`${idx + 1}`, startX, y, { width: 40 });
           doc.text(student.usn || "—", startX + 40, y, { width: 120 });
           doc.text(student.name || "—", startX + 160, y, { width: 180 });
@@ -969,23 +1013,20 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
           // Signature box placeholder
           doc.rect(startX + 380, y - 2, 110, 16).stroke();
           y += 20;
-
-          if (y > 720) {
-            doc.addPage();
-            y = 50;
-          }
         });
       } else {
         doc.text("No students", startX, y);
       }
-
-      doc.moveDown(2);
     }
 
     doc.end();
   } catch (err) {
     console.error("Attendance PDF error:", err);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
   }
 });
 
