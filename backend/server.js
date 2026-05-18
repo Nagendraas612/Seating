@@ -793,7 +793,11 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
     
     doc.on("error", (err) => {
       console.error("PDF generation error:", err);
-      res.status(500).json({ error: "PDF generation failed" });
+      res.status(500).json({ error: "PDF generation failed: " + err.message });
+    });
+    
+    res.on("error", (err) => {
+      console.error("Response error:", err);
     });
     
     doc.pipe(res);
@@ -819,10 +823,11 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
         .text(`Room: ${room.roomNo || "—"}`, { underline: true });
       doc.moveDown(0.3);
 
-      // Table header
+      // Table header setup
       const colWidths = [60, 175, 175, 175];
-      const startX = doc.x;
-      let y = doc.y;
+      const pageMargin = 40;
+      const startX = pageMargin;
+      let y = doc.y + 5;
 
       // Header row
       doc.font("Helvetica-Bold").fontSize(10);
@@ -839,10 +844,8 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
       );
       y += 20;
 
-      doc
-        .moveTo(startX, y)
-        .lineTo(startX + 585, y)
-        .stroke();
+      // Horizontal line
+      doc.moveTo(startX, y).lineTo(startX + 585, y).stroke();
       y += 5;
 
       // Data rows
@@ -855,7 +858,7 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
             return `${s.usn || "—"}\n${s.name || "—"} (${s.semester || "—"})`;
           };
 
-          const maxH = 30;
+          const rowHeight = 30;
           doc.text(`${bench.bench || "—"}`, startX, y, { width: colWidths[0] });
           doc.text(formatSeat(bench.left), startX + colWidths[0], y, {
             width: colWidths[1],
@@ -872,12 +875,12 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
             y,
             { width: colWidths[3] }
           );
-          y += maxH;
+          y += rowHeight;
 
           // New page if near bottom
           if (y > 520) {
             doc.addPage({ layout: "landscape" });
-            y = 50;
+            y = 40;
           }
         }
       } else {
@@ -938,9 +941,10 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
         .text(`Room: ${room.roomNo || "—"} – Attendance`, { underline: true });
       doc.moveDown(0.5);
 
-      // Table header
-      const startX = doc.x;
-      let y = doc.y;
+      // Table header setup
+      const pageMargin = 50;
+      const startX = pageMargin;
+      let y = doc.y + 5;
 
       doc.font("Helvetica-Bold").fontSize(10);
       doc.text("S.No", startX, y, { width: 40 });
@@ -950,10 +954,8 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
       doc.text("Signature", startX + 380, y, { width: 120 });
       y += 18;
 
-      doc
-        .moveTo(startX, y)
-        .lineTo(startX + 500, y)
-        .stroke();
+      // Horizontal line
+      doc.moveTo(startX, y).lineTo(startX + 500, y).stroke();
       y += 4;
 
       doc.font("Helvetica").fontSize(9);
@@ -965,9 +967,7 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
           doc.text(student.name || "—", startX + 160, y, { width: 180 });
           doc.text(student.semester || "—", startX + 340, y, { width: 40 });
           // Signature box placeholder
-          doc
-            .rect(startX + 380, y - 2, 110, 16)
-            .stroke();
+          doc.rect(startX + 380, y - 2, 110, 16).stroke();
           y += 20;
 
           if (y > 720) {
