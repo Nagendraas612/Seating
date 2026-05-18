@@ -255,6 +255,49 @@ app.delete("/api/rooms/:id", isLoggedIn, async (req, res) => {
 });
 
 // ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+/**
+ * Extract batch year from USN format: 4VV24CI001 → "24"
+ * USN Format: [digit][2 letters][2 digits - BATCH YEAR][2 letters - BRANCH][3 digits]
+ * Examples:
+ *   4VV24CI001 → batch "24" (2024 admission)
+ *   4VV23CS001 → batch "23" (2023 admission)
+ *   4TV24CS001 → batch "24" (2024 admission)
+ */
+function extractBatchFromUSN(usn) {
+  if (!usn || typeof usn !== "string") return null;
+  const match = usn.match(/^\d[A-Z]{2}(\d{2})[A-Z]{2}\d{3}$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Parse student list and group by batch year (extracted from USN)
+ * @param {Array} students - Array of { name, usn }
+ * @returns {Object} - { "24": [students], "23": [students], ... }
+ */
+function groupStudentsByBatch(students) {
+  const batchMap = {};
+  
+  for (const student of students) {
+    const batch = extractBatchFromUSN(student.usn);
+    
+    if (!batch) {
+      console.warn(`Invalid USN format or batch not found: ${student.usn}`);
+      continue;
+    }
+    
+    if (!batchMap[batch]) {
+      batchMap[batch] = [];
+    }
+    batchMap[batch].push(student);
+  }
+  
+  return batchMap;
+}
+
+// ============================================================
 // SEATING ALGORITHM
 // ============================================================
 
@@ -502,13 +545,13 @@ function buildAttendance(roomResults) {
 // ============================================================
 // MAIN ALLOCATION ROUTE
 // POST /api/allocate
-// Accepts: exam details + multiple Excel/CSV files (one per semester)
+// Accepts: exam details + multiple Excel/CSV files (students grouped by batch year via USN)
 // ============================================================
 
 app.post(
   "/api/allocate",
   isLoggedIn,
-  upload.array("semesterFiles"), // field name "semesterFiles", multiple files
+  upload.array("semesterFiles"), // field name "semesterFiles", multiple files allowed
   async (req, res) => {
     try {
       const { examName, date, session } = req.body;
@@ -519,40 +562,65 @@ app.post(
           .json({ error: "examName, date, and session are required." });
       }
 
-      // --- Parse uploaded Excel/CSV files ---
-      // Each file's original name should contain the semester code
-      // e.g. "II_sem.xlsx", "IV_sem.xlsx"
-      const semesterStudents = {}; // { "II": [{name, usn},...], ... }
-
-      for (const file of req.files) {
-        // Try to extract semester from filename (e.g. "II_sem.xlsx" → "II")
-        const nameParts = file.originalname.replace(/\.[^/.]+$/, "").split("_");
-        const semCode = nameParts[0].toUpperCase(); // e.g. "II"
-
-        // Parse using xlsx library
-        const workbook = xlsx.read(file.buffer, { type: "buffer" });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = xlsx.utils.sheet_to_json(sheet);
-
-        // Expected columns: Name, USN (case-insensitive)
-        const students = rows
-          .map((row) => {
-            const name =
-              row["Name"] || row["name"] || row["NAME"] || "";
-            const usn =
-              row["USN"] || row["usn"] || row["Usn"] || "";
-            return { name: name.trim(), usn: usn.trim() };
-          })
-          .filter((s) => s.name && s.usn); // Remove empty rows
-
-        semesterStudents[semCode] = students;
-      }
-
-      if (Object.keys(semesterStudents).length === 0) {
+      if (!req.files || req.files.length === 0) {
         return res
           .status(400)
-          .json({ error: "No valid student files uploaded." });
+          .json({ error: "At least one student file is required." });
       }
+
+      // --- Collect all students from all uploaded files ---
+      const allStudents = [];
+
+      for (const file of req.files) {
+        try {
+          // Parse using xlsx library
+          const workbook = xlsx.read(file.buffer, { type: "buffer" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = xlsx.utils.sheet_to_json(sheet);
+
+          // Expected columns: Name, USN (case-insensitive)
+          const students = rows
+            .map((row) => {
+              const name =
+                row["Name"] || row["name"] || row["NAME"] || "";
+              const usn =
+                row["USN"] || row["usn"] || row["Usn"] || "";
+              return { name: name.trim(), usn: usn.trim() };
+            })
+            .filter((s) => s.name && s.usn); // Remove empty rows
+
+          allStudents.push(...students);
+        } catch (fileErr) {
+          console.error(`Error parsing file ${file.originalname}:`, fileErr);
+          return res.status(400).json({
+            error: `Failed to parse file ${file.originalname}: ${fileErr.message}`,
+          });
+        }
+      }
+
+      if (allStudents.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "No valid students found in uploaded files." });
+      }
+
+      // --- GROUP STUDENTS BY BATCH YEAR (extracted from USN) ---
+      const batchStudents = groupStudentsByBatch(allStudents);
+
+      if (Object.keys(batchStudents).length === 0) {
+        return res.status(400).json({
+          error:
+            "No valid USN formats found. Expected format: 4VV24CI001 (year in positions 4-5)",
+        });
+      }
+
+      console.log(
+        `✅ Parsed ${allStudents.length} students into batches:`,
+        Object.entries(batchStudents).map(([batch, students]) => ({
+          batch,
+          count: students.length,
+        }))
+      );
 
       // --- Fetch enabled rooms from DB, sorted ---
       const rooms = await Room.find({ enabled: true }).sort({ roomNo: 1 });
@@ -562,8 +630,8 @@ app.post(
           .json({ error: "No enabled rooms found. Please add rooms first." });
       }
 
-      // --- Run seating algorithm ---
-      const roomResults = allocateSeats(semesterStudents, rooms);
+      // --- Run seating algorithm with batch data ---
+      const roomResults = allocateSeats(batchStudents, rooms);
 
       // --- Build summary and attendance ---
       const summary = buildSummary(roomResults);
@@ -647,42 +715,63 @@ function writePDFHeader(doc, title, examName, date, session) {
 app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
   try {
     const alloc = await Allocation.findById(req.params.id);
-    if (!alloc) return res.status(404).send("Not found");
+    if (!alloc) {
+      return res.status(404).json({ error: "Allocation not found" });
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="notice_${alloc.examName}.pdf"`
+      `attachment; filename="notice_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 50 });
+    
+    // Handle errors
+    doc.on("error", (err) => {
+      console.error("PDF generation error:", err);
+      res.status(500).json({ error: "PDF generation failed" });
+    });
+    
     doc.pipe(res);
 
     writePDFHeader(
       doc,
       "Notice Board – Room Allocation",
-      alloc.examName,
-      alloc.date,
-      alloc.session
+      alloc.examName || "Unknown Exam",
+      alloc.date || "—",
+      alloc.session || "—"
     );
 
+    if (!alloc.summary || alloc.summary.length === 0) {
+      doc.fontSize(12).text("No allocation data available.", { align: "center" });
+      doc.end();
+      return;
+    }
+
     for (const room of alloc.summary) {
-      doc.font("Helvetica-Bold").fontSize(13).text(`Room: ${room.roomNo}`);
+      doc.font("Helvetica-Bold").fontSize(13).text(`Room: ${room.roomNo || "—"}`);
       doc
         .font("Helvetica")
         .fontSize(11)
         .text(`Semesters: ${(room.semesters || []).join(", ") || "—"}`);
       doc.text(`Student Count: ${room.studentCount || 0}`);
       doc.text("USN Ranges:");
-      for (const range of (room.usnRanges || [])) {
-        doc.text(`  • ${range}`);
+      
+      if (room.usnRanges && room.usnRanges.length > 0) {
+        for (const range of room.usnRanges) {
+          doc.text(`  • ${range}`);
+        }
+      } else {
+        doc.text("  • No students");
       }
       doc.moveDown(1);
     }
 
     doc.end();
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error("Notice PDF error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -690,30 +779,44 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
 app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
   try {
     const alloc = await Allocation.findById(req.params.id);
-    if (!alloc) return res.status(404).send("Not found");
+    if (!alloc) {
+      return res.status(404).json({ error: "Allocation not found" });
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="seating_${alloc.examName}.pdf"`
+      `attachment; filename="seating_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "landscape" });
+    
+    doc.on("error", (err) => {
+      console.error("PDF generation error:", err);
+      res.status(500).json({ error: "PDF generation failed" });
+    });
+    
     doc.pipe(res);
 
     writePDFHeader(
       doc,
       "Detailed Seating Arrangement",
-      alloc.examName,
-      alloc.date,
-      alloc.session
+      alloc.examName || "Unknown Exam",
+      alloc.date || "—",
+      alloc.session || "—"
     );
+
+    if (!alloc.rooms || alloc.rooms.length === 0) {
+      doc.fontSize(12).text("No seating data available.", { align: "center" });
+      doc.end();
+      return;
+    }
 
     for (const room of alloc.rooms) {
       doc
         .font("Helvetica-Bold")
         .fontSize(13)
-        .text(`Room: ${room.roomNo}`, { underline: true });
+        .text(`Room: ${room.roomNo || "—"}`, { underline: true });
       doc.moveDown(0.3);
 
       // Table header
@@ -744,34 +847,41 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 
       // Data rows
       doc.font("Helvetica").fontSize(9);
-      for (const bench of room.seating) {
-        const formatSeat = (s) =>
-          s ? `${s.usn}\n${s.name} (${s.semester})` : "—";
+      
+      if (room.seating && room.seating.length > 0) {
+        for (const bench of room.seating) {
+          const formatSeat = (s) => {
+            if (!s) return "—";
+            return `${s.usn || "—"}\n${s.name || "—"} (${s.semester || "—"})`;
+          };
 
-        const maxH = 30;
-        doc.text(`${bench.bench}`, startX, y, { width: colWidths[0] });
-        doc.text(formatSeat(bench.left), startX + colWidths[0], y, {
-          width: colWidths[1],
-        });
-        doc.text(
-          formatSeat(bench.middle),
-          startX + colWidths[0] + colWidths[1],
-          y,
-          { width: colWidths[2] }
-        );
-        doc.text(
-          formatSeat(bench.right),
-          startX + colWidths[0] + colWidths[1] + colWidths[2],
-          y,
-          { width: colWidths[3] }
-        );
-        y += maxH;
+          const maxH = 30;
+          doc.text(`${bench.bench || "—"}`, startX, y, { width: colWidths[0] });
+          doc.text(formatSeat(bench.left), startX + colWidths[0], y, {
+            width: colWidths[1],
+          });
+          doc.text(
+            formatSeat(bench.middle),
+            startX + colWidths[0] + colWidths[1],
+            y,
+            { width: colWidths[2] }
+          );
+          doc.text(
+            formatSeat(bench.right),
+            startX + colWidths[0] + colWidths[1] + colWidths[2],
+            y,
+            { width: colWidths[3] }
+          );
+          y += maxH;
 
-        // New page if near bottom
-        if (y > 520) {
-          doc.addPage({ layout: "landscape" });
-          y = 50;
+          // New page if near bottom
+          if (y > 520) {
+            doc.addPage({ layout: "landscape" });
+            y = 50;
+          }
         }
+      } else {
+        doc.text("No seating data", startX, y);
       }
 
       doc.moveDown(1.5);
@@ -779,7 +889,8 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 
     doc.end();
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error("Seating PDF error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -787,30 +898,44 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
   try {
     const alloc = await Allocation.findById(req.params.id);
-    if (!alloc) return res.status(404).send("Not found");
+    if (!alloc) {
+      return res.status(404).json({ error: "Allocation not found" });
+    }
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="attendance_${alloc.examName}.pdf"`
+      `attachment; filename="attendance_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 50 });
+    
+    doc.on("error", (err) => {
+      console.error("PDF generation error:", err);
+      res.status(500).json({ error: "PDF generation failed" });
+    });
+    
     doc.pipe(res);
 
     writePDFHeader(
       doc,
       "Attendance Sheet",
-      alloc.examName,
-      alloc.date,
-      alloc.session
+      alloc.examName || "Unknown Exam",
+      alloc.date || "—",
+      alloc.session || "—"
     );
+
+    if (!alloc.attendanceByRoom || alloc.attendanceByRoom.length === 0) {
+      doc.fontSize(12).text("No attendance data available.", { align: "center" });
+      doc.end();
+      return;
+    }
 
     for (const room of alloc.attendanceByRoom) {
       doc
         .font("Helvetica-Bold")
         .fontSize(13)
-        .text(`Room: ${room.roomNo} – Attendance`, { underline: true });
+        .text(`Room: ${room.roomNo || "—"} – Attendance`, { underline: true });
       doc.moveDown(0.5);
 
       // Table header
@@ -821,7 +946,7 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
       doc.text("S.No", startX, y, { width: 40 });
       doc.text("USN", startX + 40, y, { width: 120 });
       doc.text("Name", startX + 160, y, { width: 180 });
-      doc.text("Sem", startX + 340, y, { width: 40 });
+      doc.text("Batch", startX + 340, y, { width: 40 });
       doc.text("Signature", startX + 380, y, { width: 120 });
       y += 18;
 
@@ -832,29 +957,35 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
       y += 4;
 
       doc.font("Helvetica").fontSize(9);
-      room.students.forEach((student, idx) => {
-        doc.text(`${idx + 1}`, startX, y, { width: 40 });
-        doc.text(student.usn, startX + 40, y, { width: 120 });
-        doc.text(student.name, startX + 160, y, { width: 180 });
-        doc.text(student.semester, startX + 340, y, { width: 40 });
-        // Signature box placeholder
-        doc
-          .rect(startX + 380, y - 2, 110, 16)
-          .stroke();
-        y += 20;
+      
+      if (room.students && room.students.length > 0) {
+        room.students.forEach((student, idx) => {
+          doc.text(`${idx + 1}`, startX, y, { width: 40 });
+          doc.text(student.usn || "—", startX + 40, y, { width: 120 });
+          doc.text(student.name || "—", startX + 160, y, { width: 180 });
+          doc.text(student.semester || "—", startX + 340, y, { width: 40 });
+          // Signature box placeholder
+          doc
+            .rect(startX + 380, y - 2, 110, 16)
+            .stroke();
+          y += 20;
 
-        if (y > 720) {
-          doc.addPage();
-          y = 50;
-        }
-      });
+          if (y > 720) {
+            doc.addPage();
+            y = 50;
+          }
+        });
+      } else {
+        doc.text("No students", startX, y);
+      }
 
       doc.moveDown(2);
     }
 
     doc.end();
   } catch (err) {
-    res.status(500).send(err.message);
+    console.error("Attendance PDF error:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 
