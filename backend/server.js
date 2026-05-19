@@ -694,7 +694,11 @@ app.get("/api/history/:id", isLoggedIn, async (req, res) => {
 // PDF GENERATION ROUTES
 // ============================================================
 
-// Helper: Write PDF header
+// Logo file paths (resolved once)
+const LOGO_VVCE = path.join(__dirname, "assets", "vvce.jpeg");
+const LOGO_AIML = path.join(__dirname, "assets", "aiml.jpeg");
+
+// Helper: Write PDF header (used by Notice Board & Attendance)
 function writePDFHeader(doc, title, examName, date, session) {
   doc
     .fontSize(18)
@@ -709,6 +713,257 @@ function writePDFHeader(doc, title, examName, date, session) {
       align: "center",
     });
   doc.moveDown(1);
+}
+
+/**
+ * Helper: Render the VVCE college letterhead at the top of the page.
+ * Layout:
+ *   [VVCE logo]   [Centered college name + accreditation + dept + contact]   [AIML logo]
+ *
+ * Returns the Y coordinate just below the header where content can start.
+ */
+function writeCollegeHeader(doc) {
+  const pageWidth = doc.page.width;
+  const margin = doc.page.margins.left;
+  const startY = margin;
+  const headerHeight = 80;
+  const logoSize = 70;
+
+  // Left logo (VVCE)
+  try {
+    if (fs.existsSync(LOGO_VVCE)) {
+      doc.image(LOGO_VVCE, margin, startY, {
+        fit: [logoSize, logoSize],
+        align: "center",
+        valign: "center",
+      });
+    }
+  } catch (e) {
+    console.warn("VVCE logo render failed:", e.message);
+  }
+
+  // Right logo (AIML)
+  try {
+    if (fs.existsSync(LOGO_AIML)) {
+      doc.image(LOGO_AIML, pageWidth - margin - logoSize, startY, {
+        fit: [logoSize, logoSize],
+        align: "center",
+        valign: "center",
+      });
+    }
+  } catch (e) {
+    console.warn("AIML logo render failed:", e.message);
+  }
+
+  // Centered college info block
+  const textX = margin + logoSize + 10;
+  const textWidth = pageWidth - 2 * margin - 2 * (logoSize + 10);
+  let textY = startY + 2;
+
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .text("Vidyavardhaka Sangha®, Mysore", textX, textY, {
+      width: textWidth,
+      align: "center",
+    });
+  textY = doc.y;
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(15)
+    .text("VIDYAVARDHAKA COLLEGE OF ENGINEERING", textX, textY, {
+      width: textWidth,
+      align: "center",
+    });
+  textY = doc.y;
+
+  doc
+    .font("Helvetica")
+    .fontSize(7.5)
+    .text(
+      "Autonomous Institute, Affiliated to Visvesvaraya Technological University, Belagavi",
+      textX,
+      textY,
+      { width: textWidth, align: "center" }
+    );
+  textY = doc.y;
+
+  doc.text(
+    "(Approved by AICTE, New Delhi & Government of Karnataka)",
+    textX,
+    textY,
+    { width: textWidth, align: "center" }
+  );
+  textY = doc.y;
+
+  doc.text("Accredited by NBA | NAAC with 'A' Grade", textX, textY, {
+    width: textWidth,
+    align: "center",
+  });
+  textY = doc.y;
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text(
+      "Department of CSE (Artificial Intelligence & Machine Learning)",
+      textX,
+      textY,
+      { width: textWidth, align: "center" }
+    );
+  textY = doc.y;
+
+  doc
+    .font("Helvetica")
+    .fontSize(7.5)
+    .text(
+      "Phone: +91 821-4276326,  Email: hodaiml@vvce.ac.in",
+      textX,
+      textY,
+      { width: textWidth, align: "center" }
+    );
+  textY = doc.y;
+
+  doc.text("Web: http://www.vvce.ac.in", textX, textY, {
+    width: textWidth,
+    align: "center",
+  });
+
+  // Move past the header (whichever is taller: logo or text block)
+  const endY = Math.max(startY + headerHeight, doc.y) + 5;
+  doc.moveTo(margin, endY).lineTo(pageWidth - margin, endY).stroke();
+  doc.y = endY + 8;
+  return doc.y;
+}
+
+/**
+ * Render one classroom (18 benches × 3 seats) in the template style.
+ *
+ *   ┌─────────────────────────────────────────────────────────────┐
+ *   │                  Seating Arrangement                        │
+ *   │  CIE-II/I                          Room-No: B-212           │
+ *   │                       Black-Board                           │
+ *   │                          Board                              │
+ *   │  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
+ *   │  │ L  M  R  │  │ L  M  R  │  │ L  M  R  │  (strip 1)        │
+ *   │  │ ...      │  │ ...      │  │ ...      │                   │
+ *   │  │ 6 rows   │  │ 6 rows   │  │ 6 rows   │                   │
+ *   │  └──────────┘  └──────────┘  └──────────┘                   │
+ *   └─────────────────────────────────────────────────────────────┘
+ *
+ * Each strip = 6 benches = one "row" in the seating algorithm.
+ * Each bench = 3 cells (left/middle/right), one USN per cell.
+ */
+function renderClassroom(doc, room, examName) {
+  const pageWidth = doc.page.width;
+  const margin = doc.page.margins.left;
+  const usableWidth = pageWidth - 2 * margin;
+
+  // ── Title ───────────────────────────────────────────────────
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(22)
+    .text("Seating Arrangement", margin, doc.y, {
+      width: usableWidth,
+      align: "center",
+    });
+  doc.moveDown(0.3);
+
+  // ── Exam name (left) + Room number (centered) ──────────────
+  const labelY = doc.y;
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text(examName || "—", margin, labelY, {
+      width: usableWidth / 3,
+      align: "left",
+    });
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(16)
+    .text(`Room-No: ${room.roomNo || "—"}`, margin, labelY, {
+      width: usableWidth,
+      align: "center",
+    });
+  doc.moveDown(0.6);
+
+  // ── "Black-Board" / "Board" labels ─────────────────────────
+  doc.font("Helvetica").fontSize(10).text("Black-Board", margin, doc.y, {
+    width: usableWidth,
+    align: "center",
+  });
+  doc.font("Helvetica-Bold").fontSize(12).text("Board", margin, doc.y, {
+    width: usableWidth,
+    align: "center",
+  });
+  doc.moveDown(0.5);
+
+  // ── Build seating grid: 3 strips × 6 benches × 3 seats ─────
+  // The seating algorithm produces benches with row=1..3 and bench numbers
+  // 1..18. Strip 1 = row 1 (benches 1-6), strip 2 = row 2 (7-12), etc.
+  const STRIPS = 3;
+  const BENCHES_PER_STRIP = 6;
+  const SEATS_PER_BENCH = 3;
+
+  // Group bench data by row
+  const stripBenches = [[], [], []];
+  for (const b of room.seating || []) {
+    const rowIdx = (b.row || 1) - 1;
+    if (rowIdx >= 0 && rowIdx < STRIPS) {
+      stripBenches[rowIdx].push(b);
+    }
+  }
+
+  // Layout math
+  const stripGap = 18; // gap between strips
+  const stripWidth = (usableWidth - stripGap * (STRIPS - 1)) / STRIPS;
+  const cellWidth = stripWidth / SEATS_PER_BENCH;
+  const cellHeight = 26;
+  const tableTop = doc.y;
+
+  for (let s = 0; s < STRIPS; s++) {
+    const stripX = margin + s * (stripWidth + stripGap);
+    const benches = stripBenches[s];
+
+    for (let r = 0; r < BENCHES_PER_STRIP; r++) {
+      const cellY = tableTop + r * cellHeight;
+      const bench = benches[r]; // may be undefined if room not full
+
+      const seats = bench
+        ? [bench.left, bench.middle, bench.right]
+        : [null, null, null];
+
+      for (let c = 0; c < SEATS_PER_BENCH; c++) {
+        const cellX = stripX + c * cellWidth;
+
+        // Cell border
+        doc
+          .lineWidth(0.5)
+          .rect(cellX, cellY, cellWidth, cellHeight)
+          .stroke();
+
+        // USN text (blank if seat is null/empty)
+        const seat = seats[c];
+        const usn = seat && seat.usn ? seat.usn : "";
+
+        if (usn) {
+          doc
+            .font("Helvetica")
+            .fontSize(9)
+            .fillColor("#000")
+            .text(usn, cellX, cellY + cellHeight / 2 - 5, {
+              width: cellWidth,
+              align: "center",
+              lineBreak: false,
+            });
+        }
+      }
+    }
+  }
+
+  // Move cursor past the table
+  doc.y = tableTop + BENCHES_PER_STRIP * cellHeight + 10;
 }
 
 // --- PDF: Notice Board Sheet ---
@@ -775,7 +1030,7 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
   }
 });
 
-// --- PDF: Detailed Seating Layout ---
+// --- PDF: Detailed Seating Layout (Classroom Template) ---
 app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
   try {
     const alloc = await Allocation.findById(req.params.id);
@@ -791,7 +1046,6 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 
     const doc = new PDFDocument({ margin: 40, layout: "landscape" });
 
-    // Once piped, we cannot send JSON errors — just log and destroy
     doc.on("error", (err) => {
       console.error("PDF generation error:", err);
       if (!res.headersSent) {
@@ -802,7 +1056,6 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
     });
 
     res.on("close", () => {
-      // Client disconnected — end the doc to prevent memory leaks
       if (!doc.writableEnded) {
         doc.end();
       }
@@ -810,99 +1063,25 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 
     doc.pipe(res);
 
-    writePDFHeader(
-      doc,
-      "Detailed Seating Arrangement",
-      alloc.examName || "Unknown Exam",
-      alloc.date || "—",
-      alloc.session || "—"
-    );
-
     if (!alloc.rooms || alloc.rooms.length === 0) {
       doc.fontSize(12).text("No seating data available.", { align: "center" });
       doc.end();
       return;
     }
 
+    // One page per classroom
     for (let roomIdx = 0; roomIdx < alloc.rooms.length; roomIdx++) {
       const room = alloc.rooms[roomIdx];
 
-      // Start each room on a new page (except the first which follows the header)
       if (roomIdx > 0) {
         doc.addPage({ layout: "landscape" });
       }
 
-      doc
-        .font("Helvetica-Bold")
-        .fontSize(13)
-        .text(`Room: ${room.roomNo || "—"}`, { underline: true });
-      doc.moveDown(0.3);
+      // ── College Header ──────────────────────────────────────
+      writeCollegeHeader(doc);
 
-      // Table header setup
-      const colWidths = [60, 175, 175, 175];
-      const pageMargin = 40;
-      const startX = pageMargin;
-      let y = doc.y + 5;
-
-      // Draw table header
-      const drawTableHeader = () => {
-        doc.font("Helvetica-Bold").fontSize(10);
-        doc.text("Bench", startX, y, { width: colWidths[0] });
-        doc.text("LEFT", startX + colWidths[0], y, { width: colWidths[1] });
-        doc.text("MIDDLE", startX + colWidths[0] + colWidths[1], y, {
-          width: colWidths[2],
-        });
-        doc.text(
-          "RIGHT",
-          startX + colWidths[0] + colWidths[1] + colWidths[2],
-          y,
-          { width: colWidths[3] }
-        );
-        y += 20;
-        doc.moveTo(startX, y).lineTo(startX + 585, y).stroke();
-        y += 5;
-        doc.font("Helvetica").fontSize(9);
-      };
-
-      drawTableHeader();
-
-      if (room.seating && room.seating.length > 0) {
-        for (const bench of room.seating) {
-          const formatSeat = (s) => {
-            if (!s) return "—";
-            return `${s.usn || "—"}\n${s.name || "—"} (${s.semester || "—"})`;
-          };
-
-          const rowHeight = 30;
-
-          // Check if we need a new page BEFORE writing the row
-          if (y + rowHeight > 540) {
-            doc.addPage({ layout: "landscape" });
-            y = 40;
-            drawTableHeader();
-          }
-
-          doc.text(`${bench.bench || "—"}`, startX, y, { width: colWidths[0] });
-          doc.text(formatSeat(bench.left), startX + colWidths[0], y, {
-            width: colWidths[1],
-          });
-          doc.text(
-            formatSeat(bench.middle),
-            startX + colWidths[0] + colWidths[1],
-            y,
-            { width: colWidths[2] }
-          );
-          doc.text(
-            formatSeat(bench.right),
-            startX + colWidths[0] + colWidths[1] + colWidths[2],
-            y,
-            { width: colWidths[3] }
-          );
-          y += rowHeight;
-        }
-      } else {
-        doc.text("No seating data", startX, y);
-      }
+      // ── Render classroom grid ───────────────────────────────
+      renderClassroom(doc, room, alloc.examName);
     }
 
     doc.end();
