@@ -212,10 +212,25 @@
             </div>
           </form>
 
-          <!-- Loading Indicator -->
+          <!-- Loading Indicator (Skeleton) -->
           <div id="loading" class="loading hidden">
-            <div class="spinner"></div>
-            <p>Allocating seats... please wait</p>
+            <div class="skeleton-container">
+              <div class="skeleton-header"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-row short"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-row short"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-table">
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+              </div>
+            </div>
+            <p class="loading-text">Allocating seats... please wait</p>
           </div>
 
           <!-- ---- OUTPUT PREVIEW SECTION ---- -->

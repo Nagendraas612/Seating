@@ -645,34 +645,54 @@ function renderAttendance(attendanceByRoom) {
 
   container.innerHTML = attendanceByRoom
     .map((room) => {
-      const rows = room.students
-        .map(
-          (s, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td class="usn-code">${s.usn}</td>
-          <td>${s.name}</td>
-          <td>Sem ${s.semester}</td>
-          <td style="border:1px solid var(--border-strong);min-width:100px;height:28px;"></td>
-        </tr>`
-        )
+      // Group students by semester within this room
+      const semGroups = {};
+      for (const s of room.students) {
+        const sem = s.semester || "Unknown";
+        if (!semGroups[sem]) semGroups[sem] = [];
+        semGroups[sem].push(s);
+      }
+
+      const semSections = Object.keys(semGroups)
+        .sort()
+        .map((sem) => {
+          const students = semGroups[sem];
+          const rows = students
+            .map(
+              (s, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td class="usn-code">${s.usn}</td>
+              <td>${s.name}</td>
+              <td>Sem ${sem}</td>
+              <td style="border:1px solid var(--border-strong);min-width:100px;height:28px;"></td>
+            </tr>`
+            )
+            .join("");
+
+          return `
+            <div class="attendance-sem-section">
+              <div class="attendance-sem-label">Semester ${sem} (${students.length} students)</div>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>USN</th>
+                    <th>Name</th>
+                    <th>Semester</th>
+                    <th>Signature</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`;
+        })
         .join("");
 
       return `
-        <div class="room-block" style="margin-bottom:20px;">
+        <div class="room-block" style="margin-bottom:24px;">
           <div class="room-block-header">✍️ Attendance — Room: ${room.roomNo} (${room.students.length} students)</div>
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>USN</th>
-                <th>Name</th>
-                <th>Semester</th>
-                <th>Signature</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          ${semSections}
         </div>`;
     })
     .join("");

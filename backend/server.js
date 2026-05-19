@@ -343,7 +343,7 @@ function groupStudentsByBatch(students) {
  *    No undefined values are ever stored.
  */
 
-function allocateSeats(semesterStudents, rooms) {
+function allocateSeats(semesterStudents, rooms, groupToSemester) {
 
   // =========================================================
   // STEP 1 — BUILD QUEUES sorted by USN
@@ -373,10 +373,12 @@ function allocateSeats(semesterStudents, rooms) {
   }
 
   // Pop next student from a semester queue. Returns null if exhausted.
+  // Uses groupToSemester to set the display semester label.
   function getNextStudent(sem) {
     if (!sem || queues[sem] >= batches[sem].length) return null;
     const student = batches[sem][queues[sem]++];
-    return { ...student, semester: sem };
+    const displaySem = (groupToSemester && groupToSemester[sem]) || sem;
+    return { ...student, semester: displaySem };
   }
 
   // Return [first, second] semesters sorted by remaining count.
@@ -631,12 +633,15 @@ app.post(
           .json({ error: "At least one student file is required." });
       }
 
-      // --- Group students by semester (from course entry) ---
-      const semesterStudents = {}; // { "II": [...], "IV": [...] }
+      // --- Group students by COURSE ENTRY (not semester) for ABA/BAB mixing ---
+      // Each course entry = one group. The semester is stored as metadata for display.
+      // Key format: "idx_semester" to keep groups unique even if same semester
+      const courseStudents = {}; // { "0_IV": [...], "1_VI": [...] }
 
       for (let idx = 0; idx < courses.length; idx++) {
         const course = courses[idx];
         const semester = course.semester;
+        const groupKey = `${idx}_${semester}`; // Unique per course entry
 
         // Find the file for this course entry
         const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);
@@ -665,11 +670,7 @@ app.post(
             });
           }
 
-          // Group under semester key
-          if (!semesterStudents[semester]) {
-            semesterStudents[semester] = [];
-          }
-          semesterStudents[semester].push(...students);
+          courseStudents[groupKey] = students;
         } catch (fileErr) {
           console.error(`Error parsing file ${file.originalname}:`, fileErr);
           return res.status(400).json({
@@ -678,16 +679,16 @@ app.post(
         }
       }
 
-      if (Object.keys(semesterStudents).length === 0) {
+      if (Object.keys(courseStudents).length === 0) {
         return res
           .status(400)
           .json({ error: "No valid students found in uploaded files." });
       }
 
       console.log(
-        `✅ Parsed students into semesters:`,
-        Object.entries(semesterStudents).map(([sem, students]) => ({
-          semester: sem,
+        `✅ Parsed students into course groups:`,
+        Object.entries(courseStudents).map(([key, students]) => ({
+          group: key,
           count: students.length,
         }))
       );
@@ -700,8 +701,14 @@ app.post(
           .json({ error: "No enabled rooms found. Please add rooms first." });
       }
 
-      // --- Run seating algorithm with semester-grouped data ---
-      const roomResults = allocateSeats(semesterStudents, rooms);
+      // --- Run seating algorithm with course-grouped data ---
+      // The algorithm uses group keys internally. We map the semester from the key
+      // so that the stored data shows the semester label (e.g., "IV") not the internal key.
+      const groupToSemester = {};
+      for (let idx = 0; idx < courses.length; idx++) {
+        groupToSemester[`${idx}_${courses[idx].semester}`] = courses[idx].semester;
+      }
+      const roomResults = allocateSeats(courseStudents, rooms, groupToSemester);
 
       // --- Build summary and attendance ---
       const summary = buildSummary(roomResults);
