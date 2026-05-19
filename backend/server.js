@@ -1052,55 +1052,269 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
       `attachment; filename="notice_${alloc.examName || "exam"}.pdf"`
     );
 
-    const doc = new PDFDocument({ margin: 50 });
-    
-    // Handle errors
+    const doc = new PDFDocument({ margin: 40, layout: "portrait" });
+
     doc.on("error", (err) => {
       console.error("PDF generation error:", err);
-      res.status(500).json({ error: "PDF generation failed" });
+      if (!res.headersSent) {
+        res.status(500).json({ error: "PDF generation failed" });
+      } else {
+        res.end();
+      }
     });
-    
+
+    res.on("close", () => {
+      if (!doc.writableEnded) {
+        doc.end();
+      }
+    });
+
     doc.pipe(res);
 
-    writePDFHeader(
-      doc,
-      "Notice Board – Room Allocation",
-      alloc.examName || "Unknown Exam",
-      alloc.date || "—",
-      alloc.session || "—"
-    );
+    // ── College Header ──────────────────────────────────────
+    writeCollegeHeader(doc);
 
-    if (!alloc.summary || alloc.summary.length === 0) {
+    // ── Department title ────────────────────────────────────
+    const pageWidth = doc.page.width;
+    const margin = doc.page.margins.left;
+    const usableWidth = pageWidth - 2 * margin;
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(13)
+      .text("Department of CSE (Artificial Intelligence & Machine Learning)", margin, doc.y, {
+        width: usableWidth,
+        align: "center",
+      });
+    doc.moveDown(0.3);
+
+    // ── "Seating Arrangement for II & IV Semester CCE-II" ───
+    const semLabel = alloc.courses && alloc.courses.length > 0
+      ? [...new Set(alloc.courses.map((c) => c.semester))].join(" & ") + " Semester"
+      : "";
+    const titleLine = `Seating Arrangement for ${semLabel} ${alloc.examName || ""}`.trim();
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(12)
+      .text(titleLine, margin, doc.y, {
+        width: usableWidth,
+        align: "center",
+      });
+    doc.moveDown(0.8);
+
+    // ── Date line: "Date: DD-MM-YYYY (Morning Session)" ─────
+    const dateFormatted = alloc.date
+      ? alloc.date.split("-").reverse().join("-") // YYYY-MM-DD → DD-MM-YYYY
+      : "—";
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .text(`Date: ${dateFormatted} (${alloc.session || "—"} Session)`, margin, doc.y, {
+        width: usableWidth,
+        align: "left",
+      });
+    doc.moveDown(0.8);
+
+    // ── Build notice board data from allocation rooms ────────
+    // For each room, group students by semester and compute USN ranges
+    const noticeData = buildNoticeData(alloc.rooms || []);
+
+    if (noticeData.length === 0) {
       doc.fontSize(12).text("No allocation data available.", { align: "center" });
       doc.end();
       return;
     }
 
-    for (const room of alloc.summary) {
-      doc.font("Helvetica-Bold").fontSize(13).text(`Room: ${room.roomNo || "—"}`);
-      doc
-        .font("Helvetica")
-        .fontSize(11)
-        .text(`Semesters: ${(room.semesters || []).join(", ") || "—"}`);
-      doc.text(`Student Count: ${room.studentCount || 0}`);
-      doc.text("USN Ranges:");
-      
-      if (room.usnRanges && room.usnRanges.length > 0) {
-        for (const range of room.usnRanges) {
-          doc.text(`  • ${range}`);
-        }
-      } else {
-        doc.text("  • No students");
+    // ── Draw table ──────────────────────────────────────────
+    const colWidths = [70, 50, 260, 80]; // Room No, Sem, Roll No, Total
+    const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+    const tableX = margin + (usableWidth - tableWidth) / 2; // Center table
+    let y = doc.y;
+
+    // Table header
+    const headerHeight = 36;
+    doc.lineWidth(1);
+    doc.rect(tableX, y, tableWidth, headerHeight).stroke();
+
+    // Header cells
+    const headers = ["Room No", "Sem/\nSec", "Roll No", "Total No.\nof\nStudents"];
+    let cellX = tableX;
+    doc.font("Helvetica-Bold").fontSize(10);
+    for (let i = 0; i < headers.length; i++) {
+      doc.rect(cellX, y, colWidths[i], headerHeight).stroke();
+      doc.text(headers[i], cellX + 4, y + 6, {
+        width: colWidths[i] - 8,
+        align: "center",
+        lineBreak: true,
+      });
+      cellX += colWidths[i];
+    }
+    y += headerHeight;
+
+    // Data rows
+    doc.font("Helvetica").fontSize(9);
+
+    for (const room of noticeData) {
+      const semRows = room.semesters;
+      const roomRowHeight = semRows.reduce((sum, sr) => sum + sr.height, 0);
+
+      // Check page overflow
+      if (y + roomRowHeight > doc.page.height - 60) {
+        doc.addPage({ layout: "portrait" });
+        y = 40;
       }
-      doc.moveDown(1);
+
+      // Room No cell (merged vertically)
+      doc.rect(tableX, y, colWidths[0], roomRowHeight).stroke();
+      doc
+        .font("Helvetica-Bold")
+        .fontSize(10)
+        .text(room.roomNo, tableX + 4, y + roomRowHeight / 2 - 6, {
+          width: colWidths[0] - 8,
+          align: "center",
+        });
+
+      // Each semester row within this room
+      let semY = y;
+      for (const sr of semRows) {
+        // Sem cell
+        doc.rect(tableX + colWidths[0], semY, colWidths[1], sr.height).stroke();
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .text(sr.semester, tableX + colWidths[0] + 4, semY + sr.height / 2 - 5, {
+            width: colWidths[1] - 8,
+            align: "center",
+          });
+
+        // Roll No cell
+        doc.rect(tableX + colWidths[0] + colWidths[1], semY, colWidths[2], sr.height).stroke();
+        doc
+          .font("Helvetica")
+          .fontSize(9)
+          .text(sr.usnText, tableX + colWidths[0] + colWidths[1] + 6, semY + 6, {
+            width: colWidths[2] - 12,
+            align: "center",
+          });
+
+        // Total cell
+        doc.rect(tableX + colWidths[0] + colWidths[1] + colWidths[2], semY, colWidths[3], sr.height).stroke();
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(10)
+          .text(
+            String(sr.count),
+            tableX + colWidths[0] + colWidths[1] + colWidths[2] + 4,
+            semY + sr.height / 2 - 5,
+            { width: colWidths[3] - 8, align: "center" }
+          );
+
+        semY += sr.height;
+      }
+
+      y += roomRowHeight;
     }
 
     doc.end();
   } catch (err) {
     console.error("Notice PDF error:", err);
-    res.status(500).json({ error: err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message });
+    } else {
+      res.end();
+    }
   }
 });
+
+/**
+ * Build notice board data from room allocation results.
+ * Groups students by room and semester, computes USN ranges with
+ * consecutive detection (ranges for consecutive, commas for non-consecutive).
+ */
+function buildNoticeData(rooms) {
+  const result = [];
+
+  for (const room of rooms) {
+    // Group USNs by semester within this room
+    const semMap = {};
+    for (const bench of room.seating || []) {
+      for (const pos of ["left", "middle", "right"]) {
+        const s = bench[pos];
+        if (!s || !s.usn || !s.semester) continue;
+        const sem = s.semester;
+        if (!semMap[sem]) semMap[sem] = [];
+        semMap[sem].push(s.usn);
+      }
+    }
+
+    const semesters = Object.keys(semMap).sort();
+    if (semesters.length === 0) continue;
+
+    const semRows = semesters.map((sem) => {
+      const usns = semMap[sem].sort();
+      const usnText = formatUSNRanges(usns);
+      // Estimate row height based on text length
+      const lines = Math.ceil(usnText.length / 40);
+      const height = Math.max(24, lines * 14 + 10);
+      return { semester: sem, usnText, count: usns.length, height };
+    });
+
+    result.push({ roomNo: room.roomNo, semesters: semRows });
+  }
+
+  return result;
+}
+
+/**
+ * Format USN array into compact ranges.
+ * Consecutive USNs (same prefix, sequential numbers) become ranges: 4VV23CI001-4VV23CI030
+ * Non-consecutive are listed individually: 4VV23CI072, 074, 081
+ */
+function formatUSNRanges(usns) {
+  if (usns.length === 0) return "—";
+  if (usns.length === 1) return usns[0];
+
+  // Group by prefix (everything except last 3 digits)
+  const groups = {};
+  for (const usn of usns) {
+    const prefix = usn.slice(0, -3);
+    const num = parseInt(usn.slice(-3), 10);
+    if (!groups[prefix]) groups[prefix] = [];
+    groups[prefix].push(num);
+  }
+
+  const parts = [];
+  for (const prefix of Object.keys(groups).sort()) {
+    const nums = groups[prefix].sort((a, b) => a - b);
+
+    // Find consecutive ranges
+    let i = 0;
+    while (i < nums.length) {
+      const start = nums[i];
+      let end = start;
+      while (i + 1 < nums.length && nums[i + 1] === end + 1) {
+        end = nums[++i];
+      }
+
+      const pad = (n) => String(n).padStart(3, "0");
+
+      if (end - start >= 2) {
+        // Range of 3+ consecutive
+        parts.push(`${prefix}${pad(start)}-${prefix}${pad(end)}`);
+      } else if (end - start === 1) {
+        // Two consecutive — show both
+        parts.push(`${prefix}${pad(start)}`);
+        parts.push(`${prefix}${pad(end)}`);
+      } else {
+        // Single
+        parts.push(`${prefix}${pad(start)}`);
+      }
+      i++;
+    }
+  }
+
+  return parts.join(", ");
+}
 
 // --- PDF: Detailed Seating Layout (Classroom Template) ---
 app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
