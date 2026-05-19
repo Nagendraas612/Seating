@@ -76,6 +76,7 @@ const allocationSchema = new mongoose.Schema({
       benches: Number,
       seating: [
         {
+          row: Number,
           bench: Number,
           left: { name: String, usn: String, semester: String },
           middle: { name: String, usn: String, semester: String },
@@ -900,20 +901,19 @@ function renderClassroom(doc, room, examName) {
   doc.moveDown(0.5);
 
   // ── Build seating grid: 3 strips × 6 benches × 3 seats ─────
-  // The seating algorithm produces benches with row=1..3 and bench numbers
-  // 1..18. Strip 1 = row 1 (benches 1-6), strip 2 = row 2 (7-12), etc.
+  // Each classroom = 18 benches total, split into 3 strips of 6.
+  // Strip 1 = benches[0..5], Strip 2 = benches[6..11], Strip 3 = benches[12..17]
   const STRIPS = 3;
   const BENCHES_PER_STRIP = 6;
   const SEATS_PER_BENCH = 3;
 
-  // Group bench data by row
-  const stripBenches = [[], [], []];
-  for (const b of room.seating || []) {
-    const rowIdx = (b.row || 1) - 1;
-    if (rowIdx >= 0 && rowIdx < STRIPS) {
-      stripBenches[rowIdx].push(b);
-    }
-  }
+  // Split seating array sequentially into 3 strips of 6
+  const allBenches = room.seating || [];
+  const stripBenches = [
+    allBenches.slice(0, BENCHES_PER_STRIP),
+    allBenches.slice(BENCHES_PER_STRIP, BENCHES_PER_STRIP * 2),
+    allBenches.slice(BENCHES_PER_STRIP * 2, BENCHES_PER_STRIP * 3),
+  ];
 
   // Layout math
   const stripGap = 18; // gap between strips
