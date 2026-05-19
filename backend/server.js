@@ -382,6 +382,15 @@ function allocateSeats(semesterStudents, rooms) {
     return [avail[0].sem, avail[1].sem];
   }
 
+  // Pop N students from a semester queue. Returns array (may contain nulls at end).
+  function getNextNStudents(sem, n) {
+    const result = [];
+    for (let i = 0; i < n; i++) {
+      result.push(getNextStudent(sem));
+    }
+    return result;
+  }
+
   // =========================================================
   // STEP 3 — LOCK GLOBAL A/B IDENTITY (called exactly ONCE)
   //
@@ -393,10 +402,24 @@ function allocateSeats(semesterStudents, rooms) {
   const [globalSemA, globalSemB] = getTopTwoBatches();
 
   // =========================================================
-  // STEP 4 — ROOM-BY-ROOM ALLOCATION
+  // STEP 4 — ROOM-BY-ROOM ALLOCATION (COLUMN-FIRST FILL)
+  //
+  // Each room has 3 rows × 6 benches = 18 benches.
+  // Each bench has 3 seats: Left, Middle, Right.
+  //
+  // For a row with ABA pattern:
+  //   Left column (A):  fill 6 students top-to-bottom from batch A
+  //   Middle column (B): fill 6 students top-to-bottom from batch B
+  //   Right column (A):  fill 6 students top-to-bottom from batch A
+  //
+  // For a row with BAB pattern:
+  //   Left column (B):  fill 6 students top-to-bottom from batch B
+  //   Middle column (A): fill 6 students top-to-bottom from batch A
+  //   Right column (B):  fill 6 students top-to-bottom from batch B
   // =========================================================
 
   const ROWS_PER_ROOM = 3;
+  const BENCHES_PER_ROW = 6; // Fixed: 18 benches / 3 rows
   const finalRooms = [];
 
   for (let roomIdx = 0; roomIdx < rooms.length; roomIdx++) {
@@ -411,49 +434,39 @@ function allocateSeats(semesterStudents, rooms) {
     };
 
     // Room-0,2,4... start ABA. Room-1,3,5... start BAB.
-    // This ONLY determines the starting row pattern.
-    // globalSemA and globalSemB are never touched here.
     const roomStartsWithABA = roomIdx % 2 === 0;
-
-    // Divide room benches evenly across 3 rows
-    const benchesPerRow = Math.ceil(room.benches / ROWS_PER_ROOM);
 
     for (let row = 0; row < ROWS_PER_ROOM; row++) {
 
       if (!hasStudentsLeft()) break;
 
       // Determine this row's pattern:
-      //   roomStartsWithABA=true  -> row0=ABA, row1=BAB, row2=ABA
-      //   roomStartsWithABA=false -> row0=BAB, row1=ABA, row2=BAB
       const rowIsABA = roomStartsWithABA
         ? row % 2 === 0
         : row % 2 !== 0;
 
-      for (let b = 0; b < benchesPerRow; b++) {
+      // Determine which batch goes to which column
+      // ABA -> Left=A, Middle=B, Right=A
+      // BAB -> Left=B, Middle=A, Right=B
+      const colSems = rowIsABA
+        ? [globalSemA, globalSemB, globalSemA]
+        : [globalSemB, globalSemA, globalSemB];
 
-        const benchNum = row * benchesPerRow + b + 1;
-        if (benchNum > room.benches) break;
-        if (!hasStudentsLeft()) break;
+      // Fill columns top-to-bottom: get N students for each column
+      const leftCol = getNextNStudents(colSems[0], BENCHES_PER_ROW);
+      const middleCol = getNextNStudents(colSems[1], BENCHES_PER_ROW);
+      const rightCol = getNextNStudents(colSems[2], BENCHES_PER_ROW);
 
-        // SLOT ASSIGNMENT using the locked global A/B identity:
-        //   ABA -> [globalSemA, globalSemB, globalSemA]  e.g. IV VI IV
-        //   BAB -> [globalSemB, globalSemA, globalSemB]  e.g. VI IV VI
-        //
-        // If a slot's batch is exhausted, that slot becomes null (empty seat).
-        const desired = rowIsABA
-          ? [globalSemA, globalSemB, globalSemA]
-          : [globalSemB, globalSemA, globalSemB];
-
-        const slots = desired.map((sem) =>
-          sem && remaining(sem) > 0 ? sem : null
-        );
+      // Assemble benches from the three columns
+      for (let b = 0; b < BENCHES_PER_ROW; b++) {
+        const benchNum = row * BENCHES_PER_ROW + b + 1;
 
         const benchData = {
-          row:    row + 1,    // 1-indexed row number (used for PDF row headers)
-          bench:  benchNum,
-          left:   getNextStudent(slots[0]),
-          middle: getNextStudent(slots[1]),
-          right:  getNextStudent(slots[2]),
+          row: row + 1,
+          bench: benchNum,
+          left: leftCol[b],
+          middle: middleCol[b],
+          right: rightCol[b],
         };
 
         // Only push if at least one seat is filled
