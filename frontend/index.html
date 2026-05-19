@@ -142,7 +142,7 @@
               <div class="form-row">
                 <div class="form-group">
                   <label>Exam Name</label>
-                  <input type="text" id="examName" placeholder="e.g. Internal Assessment 1" required />
+                  <input type="text" id="examName" placeholder="e.g. CIE-II/I" required />
                 </div>
                 <div class="form-group">
                   <label>Date</label>
@@ -159,27 +159,49 @@
               </div>
             </div>
 
-            <!-- Student Files -->
+            <!-- Course Details (Dynamic) -->
             <div class="form-section">
-              <h3 class="section-title">② Student Files (Excel/CSV)</h3>
-              <p class="form-hint">
-                Upload one file per semester. File name must start with semester code.<br />
-                Examples: <code>II_sem.xlsx</code>, <code>IV_sem.csv</code>, <code>VI_sem.xlsx</code><br />
-                Each file must have columns: <strong>Name</strong> and <strong>USN</strong>
-              </p>
-              <div class="file-drop-zone" id="drop-zone">
-                <div class="drop-icon">📂</div>
-                <p>Drag & drop files here or click to browse</p>
-                <input
-                  type="file"
-                  id="semesterFiles"
-                  name="semesterFiles"
-                  multiple
-                  accept=".xlsx,.xls,.csv"
-                  onchange="handleFileSelect(this)"
-                />
+              <h3 class="section-title">② Course Details</h3>
+              <div id="course-entries">
+                <!-- First course entry (always present) -->
+                <div class="course-entry" data-index="0">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Course Name</label>
+                      <input type="text" class="course-name" placeholder="e.g. Mathematics" required />
+                    </div>
+                    <div class="form-group">
+                      <label>Course Code</label>
+                      <input type="text" class="course-code" placeholder="e.g. 22MAT11" required />
+                    </div>
+                    <div class="form-group">
+                      <label>Semester</label>
+                      <select class="course-semester" required>
+                        <option value="">Select...</option>
+                        <option value="I">I</option>
+                        <option value="II">II</option>
+                        <option value="III">III</option>
+                        <option value="IV">IV</option>
+                        <option value="V">V</option>
+                        <option value="VI">VI</option>
+                        <option value="VII">VII</option>
+                        <option value="VIII">VIII</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="file-drop-zone course-drop-zone">
+                    <div class="drop-icon">📂</div>
+                    <p>Upload student file (Excel/CSV)</p>
+                    <input type="file" class="course-file" accept=".xlsx,.xls,.csv" required />
+                  </div>
+                  <div class="course-file-list file-list"></div>
+                </div>
               </div>
-              <div id="file-list" class="file-list"></div>
+
+              <!-- Add Course Button -->
+              <button type="button" class="btn-add-course" onclick="addCourseEntry()">
+                + Add Another Course
+              </button>
             </div>
 
             <!-- Submit -->

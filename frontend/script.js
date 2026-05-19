@@ -275,39 +275,77 @@ async function deleteRoom(id) {
 }
 
 // ============================================================
-// FILE UPLOAD HANDLING
+// FILE UPLOAD HANDLING & COURSE ENTRIES
 // ============================================================
 
-function handleFileSelect(input) {
-  const fileList = document.getElementById("file-list");
-  fileList.innerHTML = "";
+let courseEntryCount = 1; // Start with 1 entry already in HTML
 
-  Array.from(input.files).forEach((file) => {
-    const chip = document.createElement("div");
-    chip.className = "file-chip";
-    chip.innerHTML = `📄 ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
-    fileList.appendChild(chip);
-  });
+function addCourseEntry() {
+  const container = document.getElementById("course-entries");
+  const idx = courseEntryCount++;
+
+  const entry = document.createElement("div");
+  entry.className = "course-entry";
+  entry.dataset.index = idx;
+  entry.innerHTML = `
+    <div class="course-entry-header">
+      <span>Course ${idx + 1}</span>
+      <button type="button" class="btn-remove-course" onclick="removeCourseEntry(this)">✕</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Course Name</label>
+        <input type="text" class="course-name" placeholder="e.g. DBMS" required />
+      </div>
+      <div class="form-group">
+        <label>Course Code</label>
+        <input type="text" class="course-code" placeholder="e.g. 22CS42" required />
+      </div>
+      <div class="form-group">
+        <label>Semester</label>
+        <select class="course-semester" required>
+          <option value="">Select...</option>
+          <option value="I">I</option>
+          <option value="II">II</option>
+          <option value="III">III</option>
+          <option value="IV">IV</option>
+          <option value="V">V</option>
+          <option value="VI">VI</option>
+          <option value="VII">VII</option>
+          <option value="VIII">VIII</option>
+        </select>
+      </div>
+    </div>
+    <div class="file-drop-zone course-drop-zone">
+      <div class="drop-icon">📂</div>
+      <p>Upload student file (Excel/CSV)</p>
+      <input type="file" class="course-file" accept=".xlsx,.xls,.csv" required />
+    </div>
+    <div class="course-file-list file-list"></div>
+  `;
+  container.appendChild(entry);
 }
 
-// Drag and drop support for file zone
-const dropZone = document.getElementById("drop-zone");
-if (dropZone) {
-  dropZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dropZone.classList.add("dragover");
-  });
-  dropZone.addEventListener("dragleave", () => {
-    dropZone.classList.remove("dragover");
-  });
-  dropZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
-    const input = document.getElementById("semesterFiles");
-    input.files = e.dataTransfer.files;
-    handleFileSelect(input);
-  });
+function removeCourseEntry(btn) {
+  const entry = btn.closest(".course-entry");
+  entry.remove();
 }
+
+// Show file name when a course file is selected
+document.addEventListener("change", (e) => {
+  if (e.target.classList.contains("course-file")) {
+    const entry = e.target.closest(".course-entry");
+    const fileList = entry.querySelector(".course-file-list");
+    fileList.innerHTML = "";
+    if (e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const chip = document.createElement("div");
+      chip.className = "file-chip";
+      chip.innerHTML = `📄 ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
+      fileList.appendChild(chip);
+    }
+  }
+});
 
 // ============================================================
 // ALLOCATION SUBMISSION
@@ -319,11 +357,21 @@ async function submitAllocation(event) {
   const examName = document.getElementById("examName").value.trim();
   const date = document.getElementById("examDate").value;
   const session = document.getElementById("examSession").value;
-  const filesInput = document.getElementById("semesterFiles");
 
-  if (!filesInput.files.length) {
-    alert("Please upload at least one semester Excel/CSV file.");
+  // Gather course entries
+  const courseEntries = document.querySelectorAll(".course-entry");
+  if (courseEntries.length === 0) {
+    alert("Please add at least one course entry.");
     return;
+  }
+
+  // Validate all entries have files
+  for (const entry of courseEntries) {
+    const fileInput = entry.querySelector(".course-file");
+    if (!fileInput.files.length) {
+      alert("Please upload a student file for each course entry.");
+      return;
+    }
   }
 
   // Show loading
@@ -332,21 +380,28 @@ async function submitAllocation(event) {
   document.getElementById("output-section").classList.add("hidden");
 
   try {
-    // Build FormData for multipart upload
+    // Build FormData
     const formData = new FormData();
     formData.append("examName", examName);
     formData.append("date", date);
     formData.append("session", session);
 
-    Array.from(filesInput.files).forEach((file) => {
-      formData.append("semesterFiles", file);
+    courseEntries.forEach((entry, idx) => {
+      const courseName = entry.querySelector(".course-name").value.trim();
+      const courseCode = entry.querySelector(".course-code").value.trim();
+      const semester = entry.querySelector(".course-semester").value;
+      const fileInput = entry.querySelector(".course-file");
+
+      formData.append(`courses[${idx}][courseName]`, courseName);
+      formData.append(`courses[${idx}][courseCode]`, courseCode);
+      formData.append(`courses[${idx}][semester]`, semester);
+      formData.append(`course_file_${idx}`, fileInput.files[0]);
     });
 
     const res = await fetch(`${API}/api/allocate`, {
       method: "POST",
       credentials: "include",
       body: formData,
-      // NOTE: Do NOT set Content-Type here; browser sets it with boundary
     });
 
     const data = await res.json();

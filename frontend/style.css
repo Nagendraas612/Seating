@@ -1012,3 +1012,78 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   min-width: 140px;
   line-height: 1.6;
 }
+
+/* ============================================================
+   COURSE ENTRY STYLES
+   ============================================================ */
+
+.course-entry {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.course-entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.btn-remove-course {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.btn-remove-course:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.course-drop-zone {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  min-height: auto;
+}
+
+.course-drop-zone p {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.btn-add-course {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background 0.2s;
+}
+
+.btn-add-course:hover {
+  background: var(--accent);
+  color: #fff;
+}

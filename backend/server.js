@@ -70,6 +70,14 @@ const allocationSchema = new mongoose.Schema({
   date: String,
   session: String, // Morning / Afternoon
   createdAt: { type: Date, default: Date.now },
+  // Course details per semester
+  courses: [
+    {
+      courseName: String,
+      courseCode: String,
+      semester: String, // I, II, III, IV, V, VI, VII, VIII
+    },
+  ],
   rooms: [
     {
       roomNo: String,
@@ -559,13 +567,13 @@ function buildAttendance(roomResults) {
 // ============================================================
 // MAIN ALLOCATION ROUTE
 // POST /api/allocate
-// Accepts: exam details + multiple Excel/CSV files (students grouped by batch year via USN)
+// Accepts: exam details + course entries (each with courseName, courseCode, semester, file)
 // ============================================================
 
 app.post(
   "/api/allocate",
   isLoggedIn,
-  upload.array("semesterFiles"), // field name "semesterFiles", multiple files allowed
+  upload.any(), // Accept any field names (course_file_0, course_file_1, etc.)
   async (req, res) => {
     try {
       const { examName, date, session } = req.body;
@@ -576,34 +584,71 @@ app.post(
           .json({ error: "examName, date, and session are required." });
       }
 
+      // --- Parse course entries from form data ---
+      // Frontend sends: courses[0][courseName], courses[0][courseCode], courses[0][semester]
+      // And files with fieldname: course_file_0, course_file_1, etc.
+      const courses = [];
+      let i = 0;
+      while (req.body[`courses[${i}][semester]`]) {
+        courses.push({
+          courseName: req.body[`courses[${i}][courseName]`] || "",
+          courseCode: req.body[`courses[${i}][courseCode]`] || "",
+          semester: req.body[`courses[${i}][semester]`] || "",
+        });
+        i++;
+      }
+
+      if (courses.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "At least one course entry is required." });
+      }
+
       if (!req.files || req.files.length === 0) {
         return res
           .status(400)
           .json({ error: "At least one student file is required." });
       }
 
-      // --- Collect all students from all uploaded files ---
-      const allStudents = [];
+      // --- Group students by semester (from course entry) ---
+      const semesterStudents = {}; // { "II": [...], "IV": [...] }
 
-      for (const file of req.files) {
+      for (let idx = 0; idx < courses.length; idx++) {
+        const course = courses[idx];
+        const semester = course.semester;
+
+        // Find the file for this course entry
+        const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);
+        if (!file) {
+          return res.status(400).json({
+            error: `No file uploaded for course entry ${idx + 1} (${course.courseName || semester}).`,
+          });
+        }
+
         try {
-          // Parse using xlsx library
           const workbook = xlsx.read(file.buffer, { type: "buffer" });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = xlsx.utils.sheet_to_json(sheet);
 
-          // Expected columns: Name, USN (case-insensitive)
           const students = rows
             .map((row) => {
-              const name =
-                row["Name"] || row["name"] || row["NAME"] || "";
-              const usn =
-                row["USN"] || row["usn"] || row["Usn"] || "";
+              const name = row["Name"] || row["name"] || row["NAME"] || "";
+              const usn = row["USN"] || row["usn"] || row["Usn"] || "";
               return { name: name.trim(), usn: usn.trim() };
             })
-            .filter((s) => s.name && s.usn); // Remove empty rows
+            .filter((s) => s.name && s.usn);
 
-          allStudents.push(...students);
+          if (students.length === 0) {
+            return res.status(400).json({
+              error: `No valid students found in file for ${course.courseName || semester}.`,
+            });
+          }
+
+          // Group under semester key
+          if (!semesterStudents[semester]) {
+            semesterStudents[semester] = [];
+          }
+          semesterStudents[semester].push(...students);
         } catch (fileErr) {
           console.error(`Error parsing file ${file.originalname}:`, fileErr);
           return res.status(400).json({
@@ -612,26 +657,16 @@ app.post(
         }
       }
 
-      if (allStudents.length === 0) {
+      if (Object.keys(semesterStudents).length === 0) {
         return res
           .status(400)
           .json({ error: "No valid students found in uploaded files." });
       }
 
-      // --- GROUP STUDENTS BY BATCH YEAR (extracted from USN) ---
-      const batchStudents = groupStudentsByBatch(allStudents);
-
-      if (Object.keys(batchStudents).length === 0) {
-        return res.status(400).json({
-          error:
-            "No valid USN formats found. Expected format: 4VV24CI001 (year in positions 4-5)",
-        });
-      }
-
       console.log(
-        `✅ Parsed ${allStudents.length} students into batches:`,
-        Object.entries(batchStudents).map(([batch, students]) => ({
-          batch,
+        `✅ Parsed students into semesters:`,
+        Object.entries(semesterStudents).map(([sem, students]) => ({
+          semester: sem,
           count: students.length,
         }))
       );
@@ -644,8 +679,8 @@ app.post(
           .json({ error: "No enabled rooms found. Please add rooms first." });
       }
 
-      // --- Run seating algorithm with batch data ---
-      const roomResults = allocateSeats(batchStudents, rooms);
+      // --- Run seating algorithm with semester-grouped data ---
+      const roomResults = allocateSeats(semesterStudents, rooms);
 
       // --- Build summary and attendance ---
       const summary = buildSummary(roomResults);
@@ -656,6 +691,7 @@ app.post(
         examName,
         date,
         session,
+        courses,
         rooms: roomResults,
         summary,
         attendanceByRoom,
@@ -665,6 +701,7 @@ app.post(
       res.json({
         message: "Allocation successful",
         allocationId: allocation._id,
+        courses,
         summary,
         rooms: roomResults,
         attendanceByRoom,
@@ -869,7 +906,7 @@ function writeCollegeHeader(doc) {
  * Each strip = 6 benches = one "row" in the seating algorithm.
  * Each bench = 3 cells (left/middle/right), one USN per cell.
  */
-function renderClassroom(doc, room, examName) {
+function renderClassroom(doc, room, examName, semLabel) {
   const pageWidth = doc.page.width;
   const margin = doc.page.margins.left;
   const usableWidth = pageWidth - 2 * margin;
@@ -884,12 +921,13 @@ function renderClassroom(doc, room, examName) {
     });
   doc.moveDown(0.3);
 
-  // ── Exam name (left) + Room number (centered) ──────────────
+  // ── Exam name + semester (left) + Room number (centered) ──────────────
   const labelY = doc.y;
+  const examLabel = semLabel ? `${examName || "—"}\n${semLabel}` : (examName || "—");
   doc
     .font("Helvetica-Bold")
-    .fontSize(12)
-    .text(examName || "—", margin, labelY, {
+    .fontSize(11)
+    .text(examLabel, margin, labelY, {
       width: usableWidth / 3,
       align: "left",
     });
@@ -1093,8 +1131,13 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
       // ── College Header ──────────────────────────────────────
       writeCollegeHeader(doc);
 
+      // Build semester label from courses (e.g. "II & IV Semester")
+      const semLabel = alloc.courses && alloc.courses.length > 0
+        ? [...new Set(alloc.courses.map((c) => c.semester))].join(" & ") + " Semester"
+        : "";
+
       // ── Render classroom grid ───────────────────────────────
-      renderClassroom(doc, room, alloc.examName);
+      renderClassroom(doc, room, alloc.examName, semLabel);
     }
 
     doc.end();
