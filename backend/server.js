@@ -585,20 +585,36 @@ app.post(
       }
 
       // --- Parse course entries from form data ---
-      // Frontend sends: courses[0][courseName], courses[0][courseCode], courses[0][semester]
-      // And files with fieldname: course_file_0, course_file_1, etc.
-      console.log("📦 req.body keys:", Object.keys(req.body));
-      console.log("📎 req.files fieldnames:", req.files.map(f => f.fieldname));
+      // Express with extended:true parses courses[0][semester] into req.body.courses array
+      let courses = [];
       
-      const courses = [];
-      let i = 0;
-      while (req.body[`courses[${i}][semester]`]) {
-        courses.push({
-          courseName: req.body[`courses[${i}][courseName]`] || "",
-          courseCode: req.body[`courses[${i}][courseCode]`] || "",
-          semester: req.body[`courses[${i}][semester]`] || "",
-        });
-        i++;
+      if (Array.isArray(req.body.courses)) {
+        // Already parsed as array by Express
+        courses = req.body.courses.map((c) => ({
+          courseName: c.courseName || "",
+          courseCode: c.courseCode || "",
+          semester: c.semester || "",
+        }));
+      } else if (req.body.courses && typeof req.body.courses === "object") {
+        // Single entry parsed as object
+        courses = [
+          {
+            courseName: req.body.courses.courseName || "",
+            courseCode: req.body.courses.courseCode || "",
+            semester: req.body.courses.semester || "",
+          },
+        ];
+      } else {
+        // Fallback: try bracket notation (in case multer doesn't parse nested)
+        let i = 0;
+        while (req.body[`courses[${i}][semester]`]) {
+          courses.push({
+            courseName: req.body[`courses[${i}][courseName]`] || "",
+            courseCode: req.body[`courses[${i}][courseCode]`] || "",
+            semester: req.body[`courses[${i}][semester]`] || "",
+          });
+          i++;
+        }
       }
 
       console.log("📋 Parsed courses:", courses);
