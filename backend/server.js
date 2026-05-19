@@ -587,6 +587,9 @@ app.post(
       // --- Parse course entries from form data ---
       // Frontend sends: courses[0][courseName], courses[0][courseCode], courses[0][semester]
       // And files with fieldname: course_file_0, course_file_1, etc.
+      console.log("📦 req.body keys:", Object.keys(req.body));
+      console.log("📎 req.files fieldnames:", req.files.map(f => f.fieldname));
+      
       const courses = [];
       let i = 0;
       while (req.body[`courses[${i}][semester]`]) {
@@ -597,6 +600,8 @@ app.post(
         });
         i++;
       }
+
+      console.log("📋 Parsed courses:", courses);
 
       if (courses.length === 0) {
         return res
