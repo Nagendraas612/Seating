@@ -100,7 +100,7 @@ async function loadDashboard() {
       rooms.filter((r) => r.enabled).length || 0;
     document.getElementById("stat-allocs").textContent = history.length || 0;
 
-    // Recent allocations list (last 5)
+    // Recent allocations list (last 2)
     const recentList = document.getElementById("recent-list");
     if (!history || history.length === 0) {
       recentList.innerHTML =
@@ -109,7 +109,7 @@ async function loadDashboard() {
     }
 
     recentList.innerHTML = history
-      .slice(0, 5)
+      .slice(0, 2)
       .map(
         (h) => `
       <div class="recent-item" onclick="viewHistoryAlloc('${h._id}')">
@@ -496,15 +496,12 @@ const container = document.getElementById("seating-container");
     // GROUP BENCHES BY ROW
     // =====================================================
 
-    const groupedRows = {
-      1: [],
-      2: [],
-      3: [],
-    };
+    const groupedRows = {};
 
     room.seating.forEach((bench) => {
-
-      groupedRows[bench.row].push(bench);
+      const row = bench.row || 1;
+      if (!groupedRows[row]) groupedRows[row] = [];
+      groupedRows[row].push(bench);
     });
 
     // =====================================================
