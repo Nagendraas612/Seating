@@ -109,6 +109,21 @@ const allocationSchema = new mongoose.Schema({
       students: [{ name: String, usn: String, semester: String }],
     },
   ],
+  // Saved attendance (marked by faculty)
+  attendance: [
+    {
+      roomNo: String,
+      savedAt: { type: Date, default: Date.now },
+      students: [
+        {
+          usn: String,
+          name: String,
+          semester: String,
+          present: { type: Boolean, default: true },
+        },
+      ],
+    },
+  ],
 });
 const Allocation = mongoose.model("Allocation", allocationSchema);
 
@@ -765,6 +780,53 @@ app.get("/api/history/:id", isLoggedIn, async (req, res) => {
     if (!allocation) return res.status(404).json({ error: "Not found" });
     res.json(allocation);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// ATTENDANCE SAVE ROUTE
+// ============================================================
+
+// POST save attendance for a specific room in an allocation
+app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
+  try {
+    const { allocationId, roomNo, students } = req.body;
+
+    if (!allocationId || !roomNo || !students) {
+      return res.status(400).json({ error: "allocationId, roomNo, and students are required." });
+    }
+
+    const allocation = await Allocation.findById(allocationId);
+    if (!allocation) {
+      return res.status(404).json({ error: "Allocation not found." });
+    }
+
+    // Find or create attendance entry for this room
+    if (!allocation.attendance) allocation.attendance = [];
+
+    const existingIdx = allocation.attendance.findIndex((a) => a.roomNo === roomNo);
+    const attendanceEntry = {
+      roomNo,
+      savedAt: new Date(),
+      students: students.map((s) => ({
+        usn: s.usn,
+        name: s.name,
+        semester: s.semester,
+        present: s.present,
+      })),
+    };
+
+    if (existingIdx >= 0) {
+      allocation.attendance[existingIdx] = attendanceEntry;
+    } else {
+      allocation.attendance.push(attendanceEntry);
+    }
+
+    await allocation.save();
+    res.json({ message: "Attendance saved successfully." });
+  } catch (err) {
+    console.error("Save attendance error:", err);
     res.status(500).json({ error: err.message });
   }
 });

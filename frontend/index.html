@@ -70,18 +70,9 @@
           <button class="nav-item" data-page="history">
             <span class="nav-icon">◷</span> History
           </button>
-          <!-- Attendance nav with dropdown -->
-          <div class="nav-dropdown">
-            <button class="nav-item" id="attendance-nav-btn" onclick="toggleAttendanceDropdown()">
-              <span class="nav-icon">✓</span> Attendance
-              <span class="nav-arrow" id="attendance-arrow">▸</span>
-            </button>
-            <div id="attendance-dropdown" class="nav-sub hidden">
-              <div id="attendance-exam-list">
-                <div class="nav-sub-loading">Loading exams...</div>
-              </div>
-            </div>
-          </div>
+          <button class="nav-item" data-page="attendance">
+            <span class="nav-icon">✓</span> Attendance
+          </button>
         </nav>
 
         <div class="sidebar-user" id="user-info">
@@ -339,47 +330,46 @@
           </div>
         </div>
 
-        <!-- ---- ATTENDANCE ROOMS PAGE ---- -->
-        <!-- Shows list of rooms for a selected exam -->
-        <div id="page-attendance-rooms" class="page-content">
+        <!-- ---- ATTENDANCE PAGE ---- -->
+        <div id="page-attendance" class="page-content">
           <div class="page-header">
-            <h2 id="att-exam-title">Attendance</h2>
-            <p id="att-exam-meta"></p>
+            <h2>Attendance</h2>
+            <p>Mark and save attendance for past allocations</p>
           </div>
-          <div id="att-rooms-grid" class="att-rooms-grid">
-            <p class="empty-state">Select an exam from the sidebar.</p>
-          </div>
-        </div>
 
-        <!-- ---- ATTENDANCE MARKING PAGE ---- -->
-        <!-- Per-room attendance marking with checkboxes -->
-        <div id="page-attendance-mark" class="page-content">
-          <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
-            <div>
-              <h2 id="mark-room-title">Mark Attendance</h2>
-              <p id="mark-room-meta"></p>
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-              <button class="btn-outline" onclick="goBackToRooms()">← Back to Rooms</button>
-              <button class="btn-primary" id="btn-save-absent-pdf" onclick="downloadAbsentPdf()">
-                📄 Download Absent List PDF
-              </button>
+          <!-- Step 1: Select Exam -->
+          <div id="att-exam-select">
+            <h3 class="section-title">Select Exam</h3>
+            <div id="att-exam-grid" class="history-grid">
+              <p class="empty-state">Loading exams...</p>
             </div>
           </div>
 
-          <!-- Course/batch info cards -->
-          <div id="mark-course-info" class="mark-course-info"></div>
+          <!-- Step 2: Select Room (hidden initially) -->
+          <div id="att-room-select" class="hidden">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+              <button class="btn-outline" onclick="attBackToExams()">← Back</button>
+              <h3 class="section-title" style="margin:0;border:none;padding:0;" id="att-selected-exam-title">Rooms</h3>
+            </div>
+            <div id="att-room-grid" class="att-rooms-grid"></div>
+          </div>
 
-          <!-- Student attendance list -->
-          <div class="form-card" style="margin-top:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-              <h3 class="section-title" style="margin:0;border:none;padding:0;">Student List</h3>
+          <!-- Step 3: Mark Attendance (hidden initially) -->
+          <div id="att-mark-section" class="hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1rem;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <button class="btn-outline" onclick="attBackToRooms()">← Back</button>
+                <h3 class="section-title" style="margin:0;border:none;padding:0;" id="att-room-title">Mark Attendance</h3>
+              </div>
               <div style="display:flex;gap:8px;">
-                <button class="btn-outline" style="padding:6px 14px;font-size:13px;" onclick="markAllPresent()">✓ Mark All Present</button>
-                <button class="btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);border-color:var(--danger);" onclick="markAllAbsent()">✗ Mark All Absent</button>
+                <button class="btn-outline" style="padding:6px 14px;font-size:13px;" onclick="attMarkAllPresent()">✓ All Present</button>
+                <button class="btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);border-color:var(--danger);" onclick="attMarkAllAbsent()">✗ All Absent</button>
               </div>
             </div>
-            <div id="mark-student-list"></div>
+            <div id="att-student-list" class="form-card"></div>
+            <div style="margin-top:1rem;display:flex;gap:12px;">
+              <button class="btn-primary" onclick="attSaveAttendance()">💾 Save Attendance</button>
+            </div>
           </div>
         </div>
 
@@ -412,6 +402,22 @@
           <button class="btn-primary" onclick="saveRoom()">Save</button>
           <button class="btn-outline" onclick="closeModal()">Cancel</button>
         </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PDF PREVIEW MODAL -->
+    <!-- ============================================================ -->
+    <div id="pdf-preview-modal" class="modal-overlay hidden" onclick="closePdfPreview(event)">
+      <div class="pdf-modal">
+        <div class="pdf-modal-header">
+          <h3 id="pdf-preview-title">PDF Preview</h3>
+          <div style="display:flex;gap:8px;">
+            <a id="pdf-download-link" class="btn-primary" style="text-decoration:none;font-size:13px;padding:6px 14px;" download>⬇ Download</a>
+            <button class="btn-outline" onclick="closePdfPreview()" style="padding:6px 14px;font-size:13px;">✕ Close</button>
+          </div>
+        </div>
+        <iframe id="pdf-preview-iframe" class="pdf-iframe"></iframe>
       </div>
     </div>
 

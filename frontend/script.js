@@ -77,6 +77,7 @@ function showPage(pageName) {
   if (pageName === "dashboard") loadDashboard();
   if (pageName === "rooms") loadRooms();
   if (pageName === "history") loadHistory();
+  if (pageName === "attendance") loadAttendancePage();
 }
 
 // ============================================================
@@ -727,14 +728,31 @@ function switchTab(tabName) {
 
 function setupPdfButtons(allocId) {
   document.getElementById("btn-notice-pdf").onclick = () => {
-    window.open(`${API}/api/pdf/notice/${allocId}`, "_blank");
+    openPdfPreview(`${API}/api/pdf/notice/${allocId}`, "Notice Board PDF");
   };
   document.getElementById("btn-seating-pdf").onclick = () => {
-    window.open(`${API}/api/pdf/seating/${allocId}`, "_blank");
+    openPdfPreview(`${API}/api/pdf/seating/${allocId}`, "Seating Layout PDF");
   };
   document.getElementById("btn-attendance-pdf").onclick = () => {
-    window.open(`${API}/api/pdf/attendance/${allocId}`, "_blank");
+    openPdfPreview(`${API}/api/pdf/attendance/${allocId}`, "Attendance Sheet PDF");
   };
+}
+
+// ============================================================
+// PDF PREVIEW MODAL
+// ============================================================
+
+function openPdfPreview(url, title) {
+  document.getElementById("pdf-preview-title").textContent = title || "PDF Preview";
+  document.getElementById("pdf-preview-iframe").src = url;
+  document.getElementById("pdf-download-link").href = url;
+  document.getElementById("pdf-preview-modal").classList.remove("hidden");
+}
+
+function closePdfPreview(event) {
+  if (event && event.target !== event.currentTarget) return; // Only close on overlay click
+  document.getElementById("pdf-preview-modal").classList.add("hidden");
+  document.getElementById("pdf-preview-iframe").src = "";
 }
 
 // ============================================================
@@ -1178,4 +1196,217 @@ async function downloadAbsentPdf() {
     btn.disabled = false;
     btn.textContent = "📄 Download Absent List PDF";
   }
+}
+
+
+// ============================================================
+// ATTENDANCE PAGE
+// ============================================================
+
+let attSelectedAllocId = null;
+let attSelectedRoomNo = null;
+let attStudentData = []; // Current room's students with attendance state
+
+async function loadAttendancePage() {
+  // Show exam select, hide others
+  document.getElementById("att-exam-select").classList.remove("hidden");
+  document.getElementById("att-room-select").classList.add("hidden");
+  document.getElementById("att-mark-section").classList.add("hidden");
+
+  try {
+    const res = await fetch(`${API}/api/history`, { credentials: "include" });
+    const history = await res.json();
+    const grid = document.getElementById("att-exam-grid");
+
+    if (!history || history.length === 0) {
+      grid.innerHTML = '<p class="empty-state">No allocations found. Create one first.</p>';
+      return;
+    }
+
+    grid.innerHTML = history
+      .map(
+        (h) => `
+      <div class="history-card" onclick="attSelectExam('${h._id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
+        <h4>${h.examName}</h4>
+        <div class="meta">📅 ${h.date} · ${h.session}</div>
+        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
+      </div>`
+      )
+      .join("");
+  } catch (err) {
+    console.error("Attendance page load error:", err);
+  }
+}
+
+async function attSelectExam(allocId, examName, date, session) {
+  attSelectedAllocId = allocId;
+
+  document.getElementById("att-exam-select").classList.add("hidden");
+  document.getElementById("att-room-select").classList.remove("hidden");
+  document.getElementById("att-mark-section").classList.add("hidden");
+  document.getElementById("att-selected-exam-title").textContent = `${examName} — ${date} (${session})`;
+
+  try {
+    const res = await fetch(`${API}/api/history/${allocId}`, { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const grid = document.getElementById("att-room-grid");
+    if (!data.attendanceByRoom || data.attendanceByRoom.length === 0) {
+      grid.innerHTML = '<p class="empty-state">No rooms found.</p>';
+      return;
+    }
+
+    grid.innerHTML = data.attendanceByRoom
+      .map(
+        (room) => `
+      <div class="att-room-card" onclick="attSelectRoom('${allocId}', '${room.roomNo}')">
+        <div class="att-room-icon">🏫</div>
+        <div class="att-room-name">${room.roomNo}</div>
+        <div class="att-room-count">${room.students.length} students</div>
+      </div>`
+      )
+      .join("");
+  } catch (err) {
+    alert("Error loading exam: " + err.message);
+  }
+}
+
+async function attSelectRoom(allocId, roomNo) {
+  attSelectedRoomNo = roomNo;
+
+  document.getElementById("att-room-select").classList.add("hidden");
+  document.getElementById("att-mark-section").classList.remove("hidden");
+  document.getElementById("att-room-title").textContent = `Room: ${roomNo}`;
+
+  try {
+    const res = await fetch(`${API}/api/history/${allocId}`, { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const room = data.attendanceByRoom.find((r) => r.roomNo === roomNo);
+    if (!room) {
+      document.getElementById("att-student-list").innerHTML = '<p class="empty-state">Room not found.</p>';
+      return;
+    }
+
+    // Check if attendance was already saved
+    const savedAttendance = data.attendance || [];
+    const savedRoom = savedAttendance.find((a) => a.roomNo === roomNo);
+
+    // Build student list with attendance state
+    attStudentData = room.students.map((s) => {
+      const saved = savedRoom ? savedRoom.students.find((ss) => ss.usn === s.usn) : null;
+      return {
+        ...s,
+        present: saved ? saved.present : true, // Default: present
+      };
+    });
+
+    renderAttendanceMarking();
+  } catch (err) {
+    alert("Error loading room: " + err.message);
+  }
+}
+
+function renderAttendanceMarking() {
+  // Group by semester
+  const semGroups = {};
+  for (const s of attStudentData) {
+    const sem = s.semester || "Unknown";
+    if (!semGroups[sem]) semGroups[sem] = [];
+    semGroups[sem].push(s);
+  }
+
+  const container = document.getElementById("att-student-list");
+  container.innerHTML = Object.keys(semGroups)
+    .sort()
+    .map((sem) => {
+      const students = semGroups[sem];
+      const presentCount = students.filter((s) => s.present).length;
+      const rows = students
+        .map(
+          (s, idx) => `
+        <tr class="${s.present ? "" : "absent-row"}">
+          <td>${idx + 1}</td>
+          <td class="usn-code">${s.usn}</td>
+          <td>${s.name}</td>
+          <td>
+            <label class="att-toggle">
+              <input type="checkbox" ${s.present ? "checked" : ""} onchange="attToggleStudent('${s.usn}', this.checked)" />
+              <span class="att-toggle-label ${s.present ? "present" : "absent"}">${s.present ? "P" : "A"}</span>
+            </label>
+          </td>
+        </tr>`
+        )
+        .join("");
+
+      return `
+        <div class="attendance-sem-section">
+          <div class="attendance-sem-label">Semester ${sem} — ${presentCount}/${students.length} Present</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>S.No</th><th>USN</th><th>Name</th><th>Status</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    })
+    .join("");
+}
+
+function attToggleStudent(usn, isPresent) {
+  const student = attStudentData.find((s) => s.usn === usn);
+  if (student) student.present = isPresent;
+  renderAttendanceMarking();
+}
+
+function attMarkAllPresent() {
+  attStudentData.forEach((s) => (s.present = true));
+  renderAttendanceMarking();
+}
+
+function attMarkAllAbsent() {
+  attStudentData.forEach((s) => (s.present = false));
+  renderAttendanceMarking();
+}
+
+async function attSaveAttendance() {
+  if (!attSelectedAllocId || !attSelectedRoomNo) return;
+
+  try {
+    const res = await fetch(`${API}/api/attendance/save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        allocationId: attSelectedAllocId,
+        roomNo: attSelectedRoomNo,
+        students: attStudentData.map((s) => ({
+          usn: s.usn,
+          name: s.name,
+          semester: s.semester,
+          present: s.present,
+        })),
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    alert("Attendance saved successfully!");
+  } catch (err) {
+    alert("Error saving attendance: " + err.message);
+  }
+}
+
+function attBackToExams() {
+  document.getElementById("att-exam-select").classList.remove("hidden");
+  document.getElementById("att-room-select").classList.add("hidden");
+  document.getElementById("att-mark-section").classList.add("hidden");
+}
+
+function attBackToRooms() {
+  document.getElementById("att-room-select").classList.remove("hidden");
+  document.getElementById("att-mark-section").classList.add("hidden");
 }
