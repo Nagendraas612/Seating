@@ -11,6 +11,90 @@ const API = ""; // empty = same origin (works when backend serves frontend)
 let currentAllocationId = null; // ID of latest allocation (for PDF buttons)
 
 // ============================================================
+// SKELETON LOADING — Reusable skeleton renderer
+// ============================================================
+
+/**
+ * Show skeleton loading animation in a container.
+ * @param {string} containerId - The ID of the container element
+ * @param {string} type - Type of skeleton: 'stats', 'table', 'cards', 'list'
+ */
+function showSkeleton(containerId, type) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  let html = '';
+
+  switch (type) {
+    case 'stats':
+      html = `<div class="skeleton-stats-grid">
+        ${Array(3).fill('').map(() => `
+          <div class="skeleton-stat-card">
+            <div class="skeleton-icon"></div>
+            <div class="skeleton-value"></div>
+            <div class="skeleton-label"></div>
+          </div>`).join('')}
+      </div>`;
+      break;
+
+    case 'table':
+      html = `<div class="table-card">
+        <div style="padding:0;">
+          <div class="skeleton-table-row" style="background:#f8fafc;">
+            <div class="skeleton-table-cell"></div>
+            <div class="skeleton-table-cell"></div>
+            <div class="skeleton-table-cell"></div>
+            <div class="skeleton-table-cell"></div>
+            <div class="skeleton-table-cell"></div>
+          </div>
+          ${Array(5).fill('').map(() => `
+            <div class="skeleton-table-row">
+              <div class="skeleton-table-cell"></div>
+              <div class="skeleton-table-cell"></div>
+              <div class="skeleton-table-cell"></div>
+              <div class="skeleton-table-cell"></div>
+              <div class="skeleton-table-cell"></div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+      break;
+
+    case 'cards':
+      html = `<div class="skeleton-cards-grid">
+        ${Array(4).fill('').map(() => `
+          <div class="skeleton-card">
+            <div class="skeleton-card-title"></div>
+            <div class="skeleton-card-meta"></div>
+            <div class="skeleton-card-meta" style="width:35%"></div>
+            <div class="skeleton-card-footer"></div>
+          </div>`).join('')}
+      </div>`;
+      break;
+
+    case 'list':
+      html = Array(4).fill('').map(() => `
+        <div class="skeleton-list-item">
+          <div class="skeleton-list-icon"></div>
+          <div class="skeleton-list-text">
+            <div class="skeleton-list-title"></div>
+            <div class="skeleton-list-sub"></div>
+          </div>
+        </div>`).join('');
+      break;
+
+    default:
+      html = `<div class="skeleton-container">
+        <div class="skeleton-header"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row short"></div>
+        <div class="skeleton-row"></div>
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// ============================================================
 // ON PAGE LOAD — Check login status
 // ============================================================
 
@@ -100,6 +184,9 @@ function toggleMobileMenu() {
 // ============================================================
 
 async function loadDashboard() {
+  // Show skeleton loading for stats
+  showSkeleton("stats-grid", "stats");
+
   try {
     // Fetch rooms and history in parallel
     const [roomsRes, historyRes] = await Promise.all([
@@ -110,11 +197,24 @@ async function loadDashboard() {
     const rooms = await roomsRes.json();
     const history = await historyRes.json();
 
-    // Update stat cards
-    document.getElementById("stat-rooms").textContent = rooms.length || 0;
-    document.getElementById("stat-enabled").textContent =
-      rooms.filter((r) => r.enabled).length || 0;
-    document.getElementById("stat-allocs").textContent = history.length || 0;
+    // Restore stat cards
+    document.getElementById("stats-grid").innerHTML = `
+      <div class="stat-card">
+        <div class="stat-icon">▣</div>
+        <div class="stat-value" id="stat-rooms">${rooms.length || 0}</div>
+        <div class="stat-label">Total Rooms</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⬡</div>
+        <div class="stat-value" id="stat-enabled">${rooms.filter((r) => r.enabled).length || 0}</div>
+        <div class="stat-label">Enabled Rooms</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">◷</div>
+        <div class="stat-value" id="stat-allocs">${history.length || 0}</div>
+        <div class="stat-label">Past Allocations</div>
+      </div>
+    `;
 
     // Recent allocations list (last 2)
     const recentList = document.getElementById("recent-list");
@@ -147,11 +247,19 @@ async function loadDashboard() {
 // ============================================================
 
 async function loadRooms() {
+  // Show skeleton loading for table
+  const tbody = document.getElementById("rooms-tbody");
+  tbody.innerHTML = `
+    <tr><td colspan="5" style="padding:0;border:none;">
+      <div class="skeleton-table-row"><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div></div>
+      <div class="skeleton-table-row"><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div></div>
+      <div class="skeleton-table-row"><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div></div>
+      <div class="skeleton-table-row"><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div><div class="skeleton-table-cell"></div></div>
+    </td></tr>`;
+
   try {
     const res = await fetch(`${API}/api/rooms`, { credentials: "include" });
     const rooms = await res.json();
-
-    const tbody = document.getElementById("rooms-tbody");
 
     if (!rooms || rooms.length === 0) {
       tbody.innerHTML =
@@ -774,11 +882,13 @@ function closePdfPreview(event) {
 // ============================================================
 
 async function loadHistory() {
+  // Show skeleton loading for history cards
+  const container = document.getElementById("history-list");
+  showSkeleton("history-list", "cards");
+
   try {
     const res = await fetch(`${API}/api/history`, { credentials: "include" });
     const history = await res.json();
-
-    const container = document.getElementById("history-list");
 
     if (!history || history.length === 0) {
       container.innerHTML = '<p class="empty-state">No history found.</p>';
@@ -919,7 +1029,7 @@ async function openAttendanceForExam(examId) {
   }
 }
 
-// Render room cards for the attendance rooms page
+// Render room cards 
 function renderAttendanceRooms(data) {
   const grid = document.getElementById("att-rooms-grid");
 
@@ -1212,7 +1322,6 @@ async function downloadAbsentPdf() {
   }
 }
 
-
 // ============================================================
 // ATTENDANCE PAGE
 // ============================================================
@@ -1226,6 +1335,9 @@ async function loadAttendancePage() {
   document.getElementById("att-exam-select").classList.remove("hidden");
   document.getElementById("att-room-select").classList.add("hidden");
   document.getElementById("att-mark-section").classList.add("hidden");
+
+  // Show skeleton loading for exam grid
+  showSkeleton("att-exam-grid", "cards");
 
   try {
     const res = await fetch(`${API}/api/history`, { credentials: "include" });
@@ -1425,7 +1537,6 @@ function attBackToRooms() {
   document.getElementById("att-mark-section").classList.add("hidden");
 }
 
-
 // ============================================================
 // REPORTS PAGE
 // ============================================================
@@ -1436,6 +1547,9 @@ let rptAllocData = null;
 async function loadReportsPage() {
   document.getElementById("rpt-exam-select").classList.remove("hidden");
   document.getElementById("rpt-view").classList.add("hidden");
+
+  // Show skeleton loading for reports exam grid
+  showSkeleton("rpt-exam-grid", "cards");
 
   try {
     const res = await fetch(`${API}/api/history`, { credentials: "include" });

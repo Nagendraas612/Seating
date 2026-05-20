@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>
@@ -59,22 +59,22 @@
 
         <nav class="sidebar-nav">
           <button class="nav-item active" data-page="dashboard">
-            <span class="nav-icon">⬡</span> Dashboard
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard
           </button>
           <button class="nav-item" data-page="create">
-            <span class="nav-icon">+</span> New Arrangement
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span> New Arrangement
           </button>
           <button class="nav-item" data-page="rooms">
-            <span class="nav-icon">▣</span> Room Management
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Room Management
           </button>
           <button class="nav-item" data-page="history">
-            <span class="nav-icon">◷</span> History
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> History
           </button>
           <button class="nav-item" data-page="attendance">
-            <span class="nav-icon">✓</span> Attendance
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></span> Attendance
           </button>
           <button class="nav-item" data-page="reports">
-            <span class="nav-icon">📊</span> Reports
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Reports
           </button>
         </nav>
 
@@ -102,7 +102,7 @@
             <p>Overview of your examination seating system</p>
           </div>
 
-          <div class="stats-grid">
+          <div class="stats-grid" id="stats-grid">
             <div class="stat-card">
               <div class="stat-icon">▣</div>
               <div class="stat-value" id="stat-rooms">—</div>
@@ -307,7 +307,7 @@
           </div>
 
           <!-- Room Table -->
-          <div class="table-card">
+          <div class="table-card" id="rooms-table-card">
             <table class="data-table" id="rooms-table">
               <thead>
                 <tr>
