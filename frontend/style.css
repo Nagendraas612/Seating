@@ -1167,3 +1167,268 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   margin-bottom: 0.5rem;
   display: inline-block;
 }
+
+/* ============================================================
+   ATTENDANCE FEATURE STYLES
+   ============================================================ */
+
+/* Sidebar dropdown for Attendance */
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.nav-arrow.open {
+  transform: rotate(90deg);
+}
+
+.nav-sub {
+  background: rgba(255,255,255,.04);
+  border-left: 2px solid rgba(88,166,255,.3);
+  margin: 2px 0 2px 12px;
+  border-radius: 0 4px 4px 0;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.nav-sub-loading {
+  color: rgba(255,255,255,.35);
+  font-size: 12px;
+  padding: 8px 12px;
+}
+
+.nav-sub-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  color: rgba(255,255,255,.6);
+  font-size: 12.5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all .15s;
+  line-height: 1.4;
+}
+
+.nav-sub-item:hover {
+  background: rgba(88,166,255,.12);
+  color: #58a6ff;
+}
+
+.nav-sub-item.active {
+  color: #58a6ff;
+  background: rgba(88,166,255,.15);
+}
+
+/* Attendance rooms grid */
+.att-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.att-room-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: all .15s;
+  box-shadow: var(--shadow-sm);
+}
+
+.att-room-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.att-room-card .room-no {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.att-room-card .room-sems {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.att-room-card .room-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Course info cards on marking page */
+.mark-course-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.course-info-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 18px;
+  min-width: 180px;
+}
+
+.course-info-card .ci-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 3px;
+}
+
+.course-info-card .ci-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Attendance year section */
+.att-year-section {
+  margin-bottom: 20px;
+}
+
+.att-year-header {
+  background: var(--sidebar-bg);
+  color: #fff;
+  padding: 8px 16px;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.att-year-header .year-badge {
+  background: rgba(88,166,255,.25);
+  color: #58a6ff;
+  border-radius: 100px;
+  padding: 2px 10px;
+  font-size: 11px;
+}
+
+/* Attendance student row */
+.att-student-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+
+.att-student-row:last-child {
+  border-bottom: none;
+}
+
+.att-student-row:hover {
+  background: #f8fafc;
+}
+
+.att-student-row.absent {
+  background: #fff5f5;
+}
+
+.att-student-row.absent .att-name {
+  color: var(--danger);
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.att-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--success);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.att-sno {
+  width: 28px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.att-usn {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  color: var(--text-secondary);
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.att-name {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.att-sem-badge {
+  font-size: 11px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 100px;
+  padding: 2px 8px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.att-status-label {
+  font-size: 11px;
+  font-weight: 600;
+  width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.att-status-label.present { color: var(--success); }
+.att-status-label.absent  { color: var(--danger); }
+
+/* Absent count summary bar */
+.att-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.att-summary-bar .sum-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.att-summary-bar .sum-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.sum-dot.present { background: var(--success); }
+.sum-dot.absent  { background: var(--danger); }

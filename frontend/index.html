@@ -70,6 +70,18 @@
           <button class="nav-item" data-page="history">
             <span class="nav-icon">◷</span> History
           </button>
+          <!-- Attendance nav with dropdown -->
+          <div class="nav-dropdown">
+            <button class="nav-item" id="attendance-nav-btn" onclick="toggleAttendanceDropdown()">
+              <span class="nav-icon">✓</span> Attendance
+              <span class="nav-arrow" id="attendance-arrow">▸</span>
+            </button>
+            <div id="attendance-dropdown" class="nav-sub hidden">
+              <div id="attendance-exam-list">
+                <div class="nav-sub-loading">Loading exams...</div>
+              </div>
+            </div>
+          </div>
         </nav>
 
         <div class="sidebar-user" id="user-info">
@@ -324,6 +336,50 @@
 
           <div id="history-list" class="history-grid">
             <p class="empty-state">No history found.</p>
+          </div>
+        </div>
+
+        <!-- ---- ATTENDANCE ROOMS PAGE ---- -->
+        <!-- Shows list of rooms for a selected exam -->
+        <div id="page-attendance-rooms" class="page-content">
+          <div class="page-header">
+            <h2 id="att-exam-title">Attendance</h2>
+            <p id="att-exam-meta"></p>
+          </div>
+          <div id="att-rooms-grid" class="att-rooms-grid">
+            <p class="empty-state">Select an exam from the sidebar.</p>
+          </div>
+        </div>
+
+        <!-- ---- ATTENDANCE MARKING PAGE ---- -->
+        <!-- Per-room attendance marking with checkboxes -->
+        <div id="page-attendance-mark" class="page-content">
+          <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div>
+              <h2 id="mark-room-title">Mark Attendance</h2>
+              <p id="mark-room-meta"></p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+              <button class="btn-outline" onclick="goBackToRooms()">← Back to Rooms</button>
+              <button class="btn-primary" id="btn-save-absent-pdf" onclick="downloadAbsentPdf()">
+                📄 Download Absent List PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- Course/batch info cards -->
+          <div id="mark-course-info" class="mark-course-info"></div>
+
+          <!-- Student attendance list -->
+          <div class="form-card" style="margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+              <h3 class="section-title" style="margin:0;border:none;padding:0;">Student List</h3>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-outline" style="padding:6px 14px;font-size:13px;" onclick="markAllPresent()">✓ Mark All Present</button>
+                <button class="btn-outline" style="padding:6px 14px;font-size:13px;color:var(--danger);border-color:var(--danger);" onclick="markAllAbsent()">✗ Mark All Absent</button>
+              </div>
+            </div>
+            <div id="mark-student-list"></div>
           </div>
         </div>
 

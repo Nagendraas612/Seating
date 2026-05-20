@@ -802,3 +802,380 @@ async function viewHistoryAlloc(id) {
     alert("Could not load allocation: " + err.message);
   }
 }
+
+// ============================================================
+// ATTENDANCE FEATURE
+// ============================================================
+
+// State for attendance marking
+let currentAttendanceExam = null;   // { _id, examName, date, session, attendanceByRoom, courses }
+let currentAttendanceRoom = null;   // { roomNo, students: [...] }
+let attendanceState = {};           // { usn: true/false } — true = present, false = absent
+
+// ---- Sidebar dropdown toggle ----
+function toggleAttendanceDropdown() {
+  const dropdown = document.getElementById("attendance-dropdown");
+  const arrow = document.getElementById("attendance-arrow");
+  const isHidden = dropdown.classList.contains("hidden");
+
+  if (isHidden) {
+    dropdown.classList.remove("hidden");
+    arrow.classList.add("open");
+    loadAttendanceExamList();
+  } else {
+    dropdown.classList.add("hidden");
+    arrow.classList.remove("open");
+  }
+}
+
+// Load exam list into the sidebar dropdown
+async function loadAttendanceExamList() {
+  const listEl = document.getElementById("attendance-exam-list");
+  listEl.innerHTML = '<div class="nav-sub-loading">Loading...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/history`, { credentials: "include" });
+    const history = await res.json();
+
+    if (!history || history.length === 0) {
+      listEl.innerHTML = '<div class="nav-sub-loading">No exams found.</div>';
+      return;
+    }
+
+    listEl.innerHTML = history
+      .map(
+        (h) => `
+        <button class="nav-sub-item" onclick="openAttendanceForExam('${h._id}')">
+          ${h.examName}<br/>
+          <span style="font-size:11px;opacity:.6;">${h.date} · ${h.session}</span>
+        </button>`
+      )
+      .join("");
+  } catch (err) {
+    listEl.innerHTML = '<div class="nav-sub-loading">Error loading.</div>';
+    console.error("Attendance exam list error:", err);
+  }
+}
+
+// Open the rooms list for a specific exam
+async function openAttendanceForExam(examId) {
+  // Highlight active item
+  document.querySelectorAll(".nav-sub-item").forEach((b) => b.classList.remove("active"));
+  const btn = document.querySelector(`.nav-sub-item[onclick="openAttendanceForExam('${examId}')"]`);
+  if (btn) btn.classList.add("active");
+
+  try {
+    const res = await fetch(`${API}/api/history/${examId}`, { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    currentAttendanceExam = data;
+
+    // Show the rooms page
+    showAttendancePage("attendance-rooms");
+
+    // Fill header
+    document.getElementById("att-exam-title").textContent =
+      `Attendance — ${data.examName}`;
+    document.getElementById("att-exam-meta").textContent =
+      `${data.date} · ${data.session}`;
+
+    // Render room cards
+    renderAttendanceRooms(data);
+  } catch (err) {
+    alert("Could not load exam: " + err.message);
+  }
+}
+
+// Render room cards for the attendance rooms page
+function renderAttendanceRooms(data) {
+  const grid = document.getElementById("att-rooms-grid");
+
+  if (!data.attendanceByRoom || data.attendanceByRoom.length === 0) {
+    grid.innerHTML = '<p class="empty-state">No rooms found for this exam.</p>';
+    return;
+  }
+
+  grid.innerHTML = data.attendanceByRoom
+    .map((room) => {
+      // Collect unique semesters in this room
+      const sems = [...new Set(room.students.map((s) => s.semester))].sort();
+      return `
+        <div class="att-room-card" onclick="openAttendanceMarking('${room.roomNo}')">
+          <div class="room-no">🏫 ${room.roomNo}</div>
+          <div class="room-sems">Sem: ${sems.join(", ")}</div>
+          <div class="room-count">${room.students.length} students</div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Open the marking page for a specific room
+function openAttendanceMarking(roomNo) {
+  if (!currentAttendanceExam) return;
+
+  const roomData = currentAttendanceExam.attendanceByRoom.find(
+    (r) => r.roomNo === roomNo
+  );
+  if (!roomData) return;
+
+  currentAttendanceRoom = roomData;
+
+  // Initialize all students as present (checked)
+  attendanceState = {};
+  for (const s of roomData.students) {
+    attendanceState[s.usn] = true; // true = present
+  }
+
+  showAttendancePage("attendance-mark");
+
+  // Fill header
+  document.getElementById("mark-room-title").textContent =
+    `Mark Attendance — Room ${roomNo}`;
+  document.getElementById("mark-room-meta").textContent =
+    `${currentAttendanceExam.examName} · ${currentAttendanceExam.date} · ${currentAttendanceExam.session}`;
+
+  // Course info cards
+  renderMarkCourseInfo();
+
+  // Student list
+  renderMarkStudentList();
+}
+
+// Render course/batch info cards at top of marking page
+function renderMarkCourseInfo() {
+  const container = document.getElementById("mark-course-info");
+  const courses = currentAttendanceExam.courses || [];
+
+  if (courses.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = courses
+    .map(
+      (c) => `
+      <div class="course-info-card">
+        <div class="ci-label">Course</div>
+        <div class="ci-value">${c.courseName || "—"}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${c.courseCode || ""} · Sem ${c.semester || "—"}</div>
+      </div>`
+    )
+    .join("");
+}
+
+/**
+ * Determine the academic year from semester:
+ * Sem I, II → 1st Year
+ * Sem III, IV → 2nd Year
+ * Sem V, VI → 3rd Year
+ * Sem VII, VIII → 4th Year
+ */
+function semToYear(sem) {
+  const semOrder = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8 };
+  const n = semOrder[sem] || 99;
+  if (n <= 2) return { year: 1, label: "1st Year" };
+  if (n <= 4) return { year: 2, label: "2nd Year" };
+  if (n <= 6) return { year: 3, label: "3rd Year" };
+  return { year: 4, label: "4th Year" };
+}
+
+// Render the student list grouped by year, sorted by USN within each group
+function renderMarkStudentList() {
+  const container = document.getElementById("mark-student-list");
+  const students = currentAttendanceRoom.students;
+
+  if (!students || students.length === 0) {
+    container.innerHTML = '<p class="empty-state">No students in this room.</p>';
+    return;
+  }
+
+  // Group by year
+  const yearGroups = {};
+  for (const s of students) {
+    const { year, label } = semToYear(s.semester);
+    if (!yearGroups[year]) yearGroups[year] = { label, students: [] };
+    yearGroups[year].students.push(s);
+  }
+
+  // Sort each group by USN
+  for (const y of Object.keys(yearGroups)) {
+    yearGroups[y].students.sort((a, b) => a.usn.localeCompare(b.usn));
+  }
+
+  // Build summary bar
+  const total = students.length;
+  const absentCount = Object.values(attendanceState).filter((v) => !v).length;
+  const presentCount = total - absentCount;
+
+  let html = `
+    <div class="att-summary-bar" id="att-summary-bar">
+      <div class="sum-item"><div class="sum-dot present"></div><strong>${presentCount}</strong> Present</div>
+      <div class="sum-item"><div class="sum-dot absent"></div><strong>${absentCount}</strong> Absent</div>
+      <div class="sum-item" style="color:var(--text-muted);">Total: ${total}</div>
+    </div>`;
+
+  // Render each year group
+  let globalIdx = 1;
+  for (const year of Object.keys(yearGroups).sort()) {
+    const group = yearGroups[year];
+    html += `
+      <div class="att-year-section">
+        <div class="att-year-header">
+          ${group.label}
+          <span class="year-badge">${group.students.length} students</span>
+        </div>
+        <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);">`;
+
+    for (const s of group.students) {
+      const isPresent = attendanceState[s.usn] !== false;
+      html += `
+        <div class="att-student-row${isPresent ? "" : " absent"}" id="row-${s.usn.replace(/[^a-zA-Z0-9]/g, "_")}">
+          <span class="att-sno">${globalIdx++}</span>
+          <input type="checkbox" class="att-checkbox"
+            ${isPresent ? "checked" : ""}
+            onchange="toggleAttendance('${s.usn}', this.checked)"
+            title="${isPresent ? "Present" : "Absent"}"
+          />
+          <span class="att-usn">${s.usn}</span>
+          <span class="att-name">${s.name}</span>
+          <span class="att-sem-badge">Sem ${s.semester}</span>
+          <span class="att-status-label ${isPresent ? "present" : "absent"}" id="status-${s.usn.replace(/[^a-zA-Z0-9]/g, "_")}">
+            ${isPresent ? "Present" : "Absent"}
+          </span>
+        </div>`;
+    }
+
+    html += `</div></div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+// Toggle a student's attendance
+function toggleAttendance(usn, isPresent) {
+  attendanceState[usn] = isPresent;
+
+  // Update row styling
+  const safeId = usn.replace(/[^a-zA-Z0-9]/g, "_");
+  const row = document.getElementById(`row-${safeId}`);
+  const statusEl = document.getElementById(`status-${safeId}`);
+
+  if (row) {
+    row.classList.toggle("absent", !isPresent);
+  }
+  if (statusEl) {
+    statusEl.textContent = isPresent ? "Present" : "Absent";
+    statusEl.className = `att-status-label ${isPresent ? "present" : "absent"}`;
+  }
+
+  // Update summary bar
+  updateSummaryBar();
+}
+
+function updateSummaryBar() {
+  const total = currentAttendanceRoom.students.length;
+  const absentCount = Object.values(attendanceState).filter((v) => !v).length;
+  const presentCount = total - absentCount;
+
+  const bar = document.getElementById("att-summary-bar");
+  if (bar) {
+    bar.innerHTML = `
+      <div class="sum-item"><div class="sum-dot present"></div><strong>${presentCount}</strong> Present</div>
+      <div class="sum-item"><div class="sum-dot absent"></div><strong>${absentCount}</strong> Absent</div>
+      <div class="sum-item" style="color:var(--text-muted);">Total: ${total}</div>`;
+  }
+}
+
+function markAllPresent() {
+  for (const usn of Object.keys(attendanceState)) {
+    attendanceState[usn] = true;
+  }
+  renderMarkStudentList();
+}
+
+function markAllAbsent() {
+  for (const usn of Object.keys(attendanceState)) {
+    attendanceState[usn] = false;
+  }
+  renderMarkStudentList();
+}
+
+// Go back to the rooms list
+function goBackToRooms() {
+  showAttendancePage("attendance-rooms");
+}
+
+// Show an attendance sub-page (hides all other pages)
+function showAttendancePage(pageName) {
+  document.querySelectorAll(".page-content").forEach((p) =>
+    p.classList.remove("active")
+  );
+  document.querySelectorAll(".nav-item").forEach((b) =>
+    b.classList.remove("active")
+  );
+
+  const pageEl = document.getElementById(`page-${pageName}`);
+  if (pageEl) pageEl.classList.add("active");
+
+  // Keep attendance nav button highlighted
+  document.getElementById("attendance-nav-btn").classList.add("active");
+}
+
+// ---- Download Absent Students PDF ----
+async function downloadAbsentPdf() {
+  if (!currentAttendanceRoom || !currentAttendanceExam) return;
+
+  // Collect absent students
+  const absentStudents = currentAttendanceRoom.students.filter(
+    (s) => attendanceState[s.usn] === false
+  );
+
+  if (absentStudents.length === 0) {
+    alert("No absent students to report. All students are marked present.");
+    return;
+  }
+
+  const btn = document.getElementById("btn-save-absent-pdf");
+  btn.disabled = true;
+  btn.textContent = "Generating PDF...";
+
+  try {
+    const payload = {
+      examName: currentAttendanceExam.examName,
+      date: currentAttendanceExam.date,
+      session: currentAttendanceExam.session,
+      roomNo: currentAttendanceRoom.roomNo,
+      courses: currentAttendanceExam.courses || [],
+      absentStudents,
+    };
+
+    const res = await fetch(`${API}/api/attendance/absent-pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "PDF generation failed");
+    }
+
+    // Download the PDF blob
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `absent_${currentAttendanceExam.examName}_Room${currentAttendanceRoom.roomNo}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert("Error generating PDF: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📄 Download Absent List PDF";
+  }
+}
