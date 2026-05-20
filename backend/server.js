@@ -810,12 +810,14 @@ app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
       roomNo,
       savedAt: new Date(),
       students: students.map((s) => ({
-        usn: s.usn,
-        name: s.name,
-        semester: s.semester,
-        present: s.present,
+        usn: s.usn || "",
+        name: s.name || "",
+        semester: s.semester || "",
+        present: s.present !== false,
       })),
     };
+
+    console.log(`📋 Saving attendance for room ${roomNo}: ${attendanceEntry.students.length} students, sample:`, attendanceEntry.students.slice(0, 2));
 
     if (existingIdx >= 0) {
       allocation.attendance[existingIdx] = attendanceEntry;
@@ -892,6 +894,16 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
     const courses = alloc.courses || [];
     const attendance = alloc.attendance;
 
+    // Build a USN lookup from attendanceByRoom for fallback (in case saved attendance is missing name/usn)
+    const usnLookup = {};
+    if (alloc.attendanceByRoom) {
+      for (const room of alloc.attendanceByRoom) {
+        for (const s of room.students) {
+          if (s.usn) usnLookup[s.usn] = { name: s.name, semester: s.semester };
+        }
+      }
+    }
+
     if (courses.length > 0) {
       for (const course of courses) {
         const sem = course.semester;
@@ -900,7 +912,14 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
         for (const room of attendance) {
           for (const s of room.students) {
             if (s.semester === sem && !s.present) {
-              absentStudents.push({ ...s, roomNo: room.roomNo });
+              // Use fallback lookup if usn/name is missing
+              const lookup = usnLookup[s.usn] || {};
+              absentStudents.push({
+                usn: s.usn || "",
+                name: s.name || lookup.name || "",
+                semester: s.semester,
+                roomNo: room.roomNo,
+              });
             }
           }
         }
@@ -941,9 +960,9 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
             y = 40;
           }
           doc.text(`${idx + 1}`, startX, y, { width: colW[0] });
-          doc.text(s.usn, startX + colW[0], y, { width: colW[1] });
-          doc.text(s.name, startX + colW[0] + colW[1], y, { width: colW[2] });
-          doc.text(s.roomNo, startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+          doc.text(s.usn || "—", startX + colW[0], y, { width: colW[1] });
+          doc.text(s.name || "—", startX + colW[0] + colW[1], y, { width: colW[2] });
+          doc.text(s.roomNo || "—", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
           y += 16;
         });
 
