@@ -774,8 +774,8 @@ app.get("/api/history/:id", isLoggedIn, async (req, res) => {
 // ============================================================
 
 // Logo file paths (resolved once)
-const LOGO_VVCE = path.join(__dirname, "assets", "vvce.jpeg");
-const LOGO_AIML = path.join(__dirname, "assets", "aiml.jpeg");
+const LOGO_VVCE = path.join(__dirname, "assets", "vvce.jpg");
+const LOGO_AIML = path.join(__dirname, "assets", "aiml.jpg");
 
 // Helper: Write PDF header (used by Notice Board & Attendance)
 function writePDFHeader(doc, title, examName, date, session) {
