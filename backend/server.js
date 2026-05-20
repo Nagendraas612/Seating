@@ -1747,9 +1747,11 @@ function formatUSNRanges(usns) {
     groups[prefix].push(num);
   }
 
-  const parts = [];
+  // Build ranges per prefix, then join prefixes with newline
+  const prefixLines = [];
   for (const prefix of Object.keys(groups).sort()) {
     const nums = groups[prefix].sort((a, b) => a - b);
+    const rangeParts = [];
 
     // Find consecutive ranges
     let i = 0;
@@ -1763,21 +1765,21 @@ function formatUSNRanges(usns) {
       const pad = (n) => String(n).padStart(3, "0");
 
       if (end - start >= 2) {
-        // Range of 3+ consecutive
-        parts.push(`${prefix}${pad(start)}-${prefix}${pad(end)}`);
+        rangeParts.push(`${prefix}${pad(start)}-${prefix}${pad(end)}`);
       } else if (end - start === 1) {
-        // Two consecutive — show both
-        parts.push(`${prefix}${pad(start)}`);
-        parts.push(`${prefix}${pad(end)}`);
+        rangeParts.push(`${prefix}${pad(start)}`);
+        rangeParts.push(`${prefix}${pad(end)}`);
       } else {
-        // Single
-        parts.push(`${prefix}${pad(start)}`);
+        rangeParts.push(`${prefix}${pad(start)}`);
       }
       i++;
     }
+
+    prefixLines.push(rangeParts.join(", "));
   }
 
-  return parts.join(", ");
+  // Different branches on separate lines
+  return prefixLines.join("\n");
 }
 
 // --- PDF: Detailed Seating Layout (Classroom Template) ---
