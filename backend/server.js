@@ -846,7 +846,7 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="absent_report_${alloc.examName || "exam"}.pdf"`
+      `inline; filename="absent_report_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "portrait" });
@@ -1277,7 +1277,7 @@ app.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="notice_${alloc.examName || "exam"}.pdf"`
+      `inline; filename="notice_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "portrait" });
@@ -1555,7 +1555,7 @@ app.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="seating_${alloc.examName || "exam"}.pdf"`
+      `inline; filename="seating_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "landscape" });
@@ -1625,7 +1625,7 @@ app.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="attendance_${alloc.examName || "exam"}.pdf"`
+      `inline; filename="attendance_${alloc.examName || "exam"}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 50 });
@@ -1765,7 +1765,7 @@ app.post("/api/attendance/absent-pdf", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="absent_${examName || "exam"}_Room${roomNo || ""}.pdf"`
+      `inline; filename="absent_${examName || "exam"}_Room${roomNo || ""}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 50 });
