@@ -429,20 +429,19 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
   // =========================================================
   // STEP 4 — ROOM-BY-ROOM ALLOCATION (COLUMN-FIRST FILL)
   //
-  // Each room has 3 rows × 6 benches = 18 benches.
-  // Each bench has 3 seats: Left, Middle, Right.
+  // SINGLE COURSE (globalSemB is null):
+  //   Each bench: Left=A, Middle=EMPTY, Right=A
+  //   Fill Left column top-to-bottom, then Right column top-to-bottom
+  //   12 students per row, 36 per room
   //
-  // For a row with ABA pattern:
-  //   Left column (A):  fill 6 students top-to-bottom from batch A
-  //   Middle column (B): fill 6 students top-to-bottom from batch B
-  //   Right column (A):  fill 6 students top-to-bottom from batch A
-  //
-  // For a row with BAB pattern:
-  //   Left column (B):  fill 6 students top-to-bottom from batch B
-  //   Middle column (A): fill 6 students top-to-bottom from batch A
-  //   Right column (B):  fill 6 students top-to-bottom from batch B
+  // TWO COURSES (normal ABA/BAB):
+  //   Each bench has 3 seats: Left, Middle, Right.
+  //   ABA -> Left=A, Middle=B, Right=A
+  //   BAB -> Left=B, Middle=A, Right=B
+  //   18 students per row, 54 per room
   // =========================================================
 
+  const singleCourse = !globalSemB; // Only one group uploaded
   const ROWS_PER_ROOM = 3;
   const BENCHES_PER_ROW = 6; // Fixed: 18 benches / 3 rows
   const finalRooms = [];
@@ -465,40 +464,58 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
 
       if (!hasStudentsLeft()) break;
 
-      // Determine this row's pattern:
-      const rowIsABA = roomStartsWithABA
-        ? row % 2 === 0
-        : row % 2 !== 0;
+      if (singleCourse) {
+        // SINGLE COURSE: Left=A, Middle=null, Right=A (column-first)
+        const leftCol = getNextNStudents(globalSemA, BENCHES_PER_ROW);
+        const rightCol = getNextNStudents(globalSemA, BENCHES_PER_ROW);
 
-      // Determine which batch goes to which column
-      // ABA -> Left=A, Middle=B, Right=A
-      // BAB -> Left=B, Middle=A, Right=B
-      const colSems = rowIsABA
-        ? [globalSemA, globalSemB, globalSemA]
-        : [globalSemB, globalSemA, globalSemB];
-
-      // Fill columns top-to-bottom: get N students for each column
-      const leftCol = getNextNStudents(colSems[0], BENCHES_PER_ROW);
-      const middleCol = getNextNStudents(colSems[1], BENCHES_PER_ROW);
-      const rightCol = getNextNStudents(colSems[2], BENCHES_PER_ROW);
-
-      // Assemble benches from the three columns
-      for (let b = 0; b < BENCHES_PER_ROW; b++) {
-        const benchNum = row * BENCHES_PER_ROW + b + 1;
-
-        const benchData = {
-          row: row + 1,
-          bench: benchNum,
-          left: leftCol[b],
-          middle: middleCol[b],
-          right: rightCol[b],
-        };
-
-        // Only push if at least one seat is filled
-        if (benchData.left || benchData.middle || benchData.right) {
-          roomResult.seating.push(benchData);
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          const benchNum = row * BENCHES_PER_ROW + b + 1;
+          const benchData = {
+            row: row + 1,
+            bench: benchNum,
+            left: leftCol[b],
+            middle: null,
+            right: rightCol[b],
+          };
+          if (benchData.left || benchData.right) {
+            roomResult.seating.push(benchData);
+          }
         }
-      }
+      } else {
+        // TWO COURSES: ABA/BAB pattern
+        const rowIsABA = roomStartsWithABA
+          ? row % 2 === 0
+          : row % 2 !== 0;
+
+        // Determine which batch goes to which column
+        const colSems = rowIsABA
+          ? [globalSemA, globalSemB, globalSemA]
+          : [globalSemB, globalSemA, globalSemB];
+
+        // Fill columns top-to-bottom: get N students for each column
+        const leftCol = getNextNStudents(colSems[0], BENCHES_PER_ROW);
+        const middleCol = getNextNStudents(colSems[1], BENCHES_PER_ROW);
+        const rightCol = getNextNStudents(colSems[2], BENCHES_PER_ROW);
+
+        // Assemble benches from the three columns
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          const benchNum = row * BENCHES_PER_ROW + b + 1;
+
+          const benchData = {
+            row: row + 1,
+            bench: benchNum,
+            left: leftCol[b],
+            middle: middleCol[b],
+            right: rightCol[b],
+          };
+
+          // Only push if at least one seat is filled
+          if (benchData.left || benchData.middle || benchData.right) {
+            roomResult.seating.push(benchData);
+          }
+        }
+      } // end else (two courses)
     }
 
     finalRooms.push(roomResult);
