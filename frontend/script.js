@@ -73,12 +73,26 @@ function showPage(pageName) {
   const navBtn = document.querySelector(`.nav-item[data-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add("active");
 
+  // Close mobile menu if open
+  const sidebar = document.querySelector(".sidebar");
+  if (sidebar && sidebar.classList.contains("open")) {
+    toggleMobileMenu();
+  }
+
   // Load data for the page
   if (pageName === "dashboard") loadDashboard();
   if (pageName === "rooms") loadRooms();
   if (pageName === "history") loadHistory();
   if (pageName === "attendance") loadAttendancePage();
   if (pageName === "reports") loadReportsPage();
+}
+
+// Mobile menu toggle
+function toggleMobileMenu() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("mobile-overlay");
+  sidebar.classList.toggle("open");
+  overlay.classList.toggle("hidden");
 }
 
 // ============================================================

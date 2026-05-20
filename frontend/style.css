@@ -967,11 +967,93 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 /* ============================================================
    RESPONSIVE
    ============================================================ */
+
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1001;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
 @media (max-width: 900px) {
   :root { --sidebar-width: 0px; }
-  .sidebar { transform: translateX(-100%); }
-  .main-content { margin-left: 0; padding: 20px; }
-  .stats-grid { grid-template-columns: 1fr; }
+
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-overlay {
+    display: block;
+  }
+
+  .mobile-overlay.hidden {
+    display: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 60px 16px 20px 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .pdf-modal {
+    width: 95vw;
+    height: 80vh;
+  }
+
+  .output-tabs {
+    flex-wrap: wrap;
+  }
+
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .att-rooms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 600px) {
@@ -979,6 +1061,12 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   .pdf-actions { flex-direction: column; }
   .login-card { padding: 32px 24px; }
   .login-title { font-size: 34px; }
+  .stats-grid { gap: 10px; }
+  .stat-card { padding: 16px; }
+  .att-rooms-grid { grid-template-columns: 1fr; }
+  .rpt-course-header { flex-direction: column; gap: 8px; }
+  .rpt-stats { flex-wrap: wrap; }
+  #rpt-download-buttons { flex-direction: column; }
 }
 
 .room-layout {
