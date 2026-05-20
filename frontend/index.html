@@ -73,6 +73,9 @@
           <button class="nav-item" data-page="attendance">
             <span class="nav-icon">✓</span> Attendance
           </button>
+          <button class="nav-item" data-page="reports">
+            <span class="nav-icon">📊</span> Reports
+          </button>
         </nav>
 
         <div class="sidebar-user" id="user-info">
@@ -370,6 +373,47 @@
             <div style="margin-top:1rem;display:flex;gap:12px;">
               <button class="btn-primary" onclick="attSaveAttendance()">💾 Save Attendance</button>
             </div>
+          </div>
+        </div>
+
+        <!-- ---- REPORTS PAGE ---- -->
+        <div id="page-reports" class="page-content">
+          <div class="page-header">
+            <h2>Attendance Reports</h2>
+            <p>View course-wise and room-wise attendance reports</p>
+          </div>
+
+          <!-- Step 1: Select Exam -->
+          <div id="rpt-exam-select">
+            <h3 class="section-title">Select Exam</h3>
+            <div id="rpt-exam-grid" class="history-grid">
+              <p class="empty-state">Loading...</p>
+            </div>
+          </div>
+
+          <!-- Step 2: Report View (hidden initially) -->
+          <div id="rpt-view" class="hidden">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+              <button class="btn-outline" onclick="rptBackToExams()">← Back</button>
+              <h3 class="section-title" style="margin:0;border:none;padding:0;" id="rpt-exam-title">Report</h3>
+            </div>
+
+            <!-- Tabs -->
+            <div class="output-tabs" style="margin-bottom:1rem;">
+              <button class="tab-btn active" onclick="rptSwitchTab('course')">Course-wise</button>
+              <button class="tab-btn" onclick="rptSwitchTab('room')">Room-wise</button>
+            </div>
+
+            <!-- Download button -->
+            <div style="margin-bottom:1rem;">
+              <button class="btn-primary" onclick="rptDownloadPdf()">📄 Download Absent Report PDF</button>
+            </div>
+
+            <!-- Course-wise tab -->
+            <div id="rpt-tab-course" class="rpt-tab-content"></div>
+
+            <!-- Room-wise tab -->
+            <div id="rpt-tab-room" class="rpt-tab-content hidden"></div>
           </div>
         </div>
 

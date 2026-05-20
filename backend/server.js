@@ -831,6 +831,165 @@ app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
   }
 });
 
+// --- PDF: Absent Report ---
+app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
+  try {
+    const alloc = await Allocation.findById(req.params.id);
+    if (!alloc) {
+      return res.status(404).json({ error: "Allocation not found" });
+    }
+
+    if (!alloc.attendance || alloc.attendance.length === 0) {
+      return res.status(400).json({ error: "No attendance data saved for this exam." });
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="absent_report_${alloc.examName || "exam"}.pdf"`
+    );
+
+    const doc = new PDFDocument({ margin: 40, layout: "portrait" });
+
+    doc.on("error", (err) => {
+      console.error("PDF error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "PDF failed" });
+      else res.end();
+    });
+
+    res.on("close", () => {
+      if (!doc.writableEnded) doc.end();
+    });
+
+    doc.pipe(res);
+
+    // Header
+    writeCollegeHeader(doc);
+
+    const pageWidth = doc.page.width;
+    const margin = doc.page.margins.left;
+    const usableWidth = pageWidth - 2 * margin;
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .text("Absent Students Report", margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(0.3);
+
+    const semLabel = alloc.courses && alloc.courses.length > 0
+      ? [...new Set(alloc.courses.map((c) => c.semester))].join(" & ") + " Semester"
+      : "";
+    doc
+      .font("Helvetica")
+      .fontSize(11)
+      .text(`${alloc.examName || ""} ${semLabel} — ${alloc.date || ""} (${alloc.session || ""})`, margin, doc.y, {
+        width: usableWidth,
+        align: "center",
+      });
+    doc.moveDown(1);
+
+    // Course-wise absent list
+    const courses = alloc.courses || [];
+    const attendance = alloc.attendance;
+
+    if (courses.length > 0) {
+      for (const course of courses) {
+        const sem = course.semester;
+        const absentStudents = [];
+
+        for (const room of attendance) {
+          for (const s of room.students) {
+            if (s.semester === sem && !s.present) {
+              absentStudents.push({ ...s, roomNo: room.roomNo });
+            }
+          }
+        }
+
+        // Course header
+        doc
+          .font("Helvetica-Bold")
+          .fontSize(11)
+          .text(`${course.courseName} (${course.courseCode}) — Sem ${sem}`, margin, doc.y);
+
+        if (absentStudents.length === 0) {
+          doc.font("Helvetica").fontSize(10).text("  All students present ✓");
+          doc.moveDown(0.5);
+          continue;
+        }
+
+        doc.font("Helvetica").fontSize(10).text(`  Absent: ${absentStudents.length} student(s)`);
+        doc.moveDown(0.3);
+
+        // Table
+        const startX = margin + 10;
+        let y = doc.y;
+        const colW = [30, 110, 150, 70];
+
+        doc.font("Helvetica-Bold").fontSize(9);
+        doc.text("S.No", startX, y, { width: colW[0] });
+        doc.text("USN", startX + colW[0], y, { width: colW[1] });
+        doc.text("Name", startX + colW[0] + colW[1], y, { width: colW[2] });
+        doc.text("Room", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+        y += 14;
+        doc.moveTo(startX, y).lineTo(startX + 360, y).stroke();
+        y += 4;
+
+        doc.font("Helvetica").fontSize(9);
+        absentStudents.forEach((s, idx) => {
+          if (y > 720) {
+            doc.addPage();
+            y = 40;
+          }
+          doc.text(`${idx + 1}`, startX, y, { width: colW[0] });
+          doc.text(s.usn, startX + colW[0], y, { width: colW[1] });
+          doc.text(s.name, startX + colW[0] + colW[1], y, { width: colW[2] });
+          doc.text(s.roomNo, startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+          y += 16;
+        });
+
+        doc.y = y + 10;
+        doc.moveDown(0.5);
+      }
+    } else {
+      // No courses — group by semester from attendance data
+      const absentBySem = {};
+      for (const room of attendance) {
+        for (const s of room.students) {
+          if (!s.present) {
+            const sem = s.semester || "Unknown";
+            if (!absentBySem[sem]) absentBySem[sem] = [];
+            absentBySem[sem].push({ ...s, roomNo: room.roomNo });
+          }
+        }
+      }
+
+      for (const sem of Object.keys(absentBySem).sort()) {
+        const students = absentBySem[sem];
+        doc.font("Helvetica-Bold").fontSize(11).text(`Semester ${sem} — ${students.length} absent`);
+        doc.moveDown(0.3);
+
+        const startX = margin + 10;
+        let y = doc.y;
+
+        doc.font("Helvetica").fontSize(9);
+        students.forEach((s, idx) => {
+          if (y > 720) { doc.addPage(); y = 40; }
+          doc.text(`${idx + 1}. ${s.usn} — ${s.name} (Room: ${s.roomNo})`, startX, y);
+          y += 14;
+        });
+
+        doc.y = y + 10;
+      }
+    }
+
+    doc.end();
+  } catch (err) {
+    console.error("Absent report PDF error:", err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+    else res.end();
+  }
+});
+
 // ============================================================
 // PDF GENERATION ROUTES
 // ============================================================

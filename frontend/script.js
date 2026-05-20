@@ -78,6 +78,7 @@ function showPage(pageName) {
   if (pageName === "rooms") loadRooms();
   if (pageName === "history") loadHistory();
   if (pageName === "attendance") loadAttendancePage();
+  if (pageName === "reports") loadReportsPage();
 }
 
 // ============================================================
@@ -1409,4 +1410,255 @@ function attBackToExams() {
 function attBackToRooms() {
   document.getElementById("att-room-select").classList.remove("hidden");
   document.getElementById("att-mark-section").classList.add("hidden");
+}
+
+
+// ============================================================
+// REPORTS PAGE
+// ============================================================
+
+let rptSelectedAllocId = null;
+let rptAllocData = null;
+
+async function loadReportsPage() {
+  document.getElementById("rpt-exam-select").classList.remove("hidden");
+  document.getElementById("rpt-view").classList.add("hidden");
+
+  try {
+    const res = await fetch(`${API}/api/history`, { credentials: "include" });
+    const history = await res.json();
+    const grid = document.getElementById("rpt-exam-grid");
+
+    if (!history || history.length === 0) {
+      grid.innerHTML = '<p class="empty-state">No allocations found.</p>';
+      return;
+    }
+
+    // Only show exams that have attendance saved
+    grid.innerHTML = history
+      .map(
+        (h) => `
+      <div class="history-card" onclick="rptSelectExam('${h._id}')" style="cursor:pointer;">
+        <h4>${h.examName}</h4>
+        <div class="meta">📅 ${h.date} · ${h.session}</div>
+        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
+      </div>`
+      )
+      .join("");
+  } catch (err) {
+    console.error("Reports page load error:", err);
+  }
+}
+
+async function rptSelectExam(allocId) {
+  rptSelectedAllocId = allocId;
+
+  try {
+    const res = await fetch(`${API}/api/history/${allocId}`, { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    rptAllocData = data;
+
+    document.getElementById("rpt-exam-select").classList.add("hidden");
+    document.getElementById("rpt-view").classList.remove("hidden");
+    document.getElementById("rpt-exam-title").textContent = `${data.examName} — ${data.date} (${data.session})`;
+
+    // Check if attendance exists
+    if (!data.attendance || data.attendance.length === 0) {
+      document.getElementById("rpt-tab-course").innerHTML =
+        '<p class="empty-state">No attendance has been marked for this exam yet. Go to Attendance page to mark it first.</p>';
+      document.getElementById("rpt-tab-room").innerHTML =
+        '<p class="empty-state">No attendance data available.</p>';
+      return;
+    }
+
+    renderCourseWiseReport(data);
+    renderRoomWiseReport(data);
+    rptSwitchTab("course");
+  } catch (err) {
+    alert("Error loading report: " + err.message);
+  }
+}
+
+function renderCourseWiseReport(data) {
+  const container = document.getElementById("rpt-tab-course");
+  const attendance = data.attendance || [];
+  const courses = data.courses || [];
+
+  if (courses.length === 0) {
+    // Old allocation without courses — group by semester
+    const allStudents = [];
+    for (const room of attendance) {
+      for (const s of room.students) {
+        allStudents.push({ ...s, roomNo: room.roomNo });
+      }
+    }
+
+    const semGroups = {};
+    for (const s of allStudents) {
+      const sem = s.semester || "Unknown";
+      if (!semGroups[sem]) semGroups[sem] = { present: [], absent: [] };
+      if (s.present) semGroups[sem].present.push(s);
+      else semGroups[sem].absent.push(s);
+    }
+
+    container.innerHTML = Object.keys(semGroups)
+      .sort()
+      .map((sem) => {
+        const g = semGroups[sem];
+        const total = g.present.length + g.absent.length;
+        const absentRows = g.absent
+          .map((s, i) => `<tr><td>${i + 1}</td><td class="usn-code">${s.usn}</td><td>${s.name}</td><td>${s.roomNo}</td></tr>`)
+          .join("");
+
+        return `
+          <div class="rpt-course-card">
+            <div class="rpt-course-header">
+              <div>
+                <strong>Semester ${sem}</strong>
+              </div>
+              <div class="rpt-stats">
+                <span class="rpt-stat present">✓ ${g.present.length} Present</span>
+                <span class="rpt-stat absent">✗ ${g.absent.length} Absent</span>
+                <span class="rpt-stat total">Total: ${total}</span>
+              </div>
+            </div>
+            ${g.absent.length > 0 ? `
+              <div class="rpt-absent-list">
+                <table class="data-table">
+                  <thead><tr><th>S.No</th><th>USN</th><th>Name</th><th>Room</th></tr></thead>
+                  <tbody>${absentRows}</tbody>
+                </table>
+              </div>` : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All students present ✓</p>'}
+          </div>`;
+      })
+      .join("");
+    return;
+  }
+
+  // Group attendance by course (using semester from courses)
+  const courseReports = courses.map((course) => {
+    const sem = course.semester;
+    const studentsInCourse = [];
+
+    for (const room of attendance) {
+      for (const s of room.students) {
+        if (s.semester === sem) {
+          studentsInCourse.push({ ...s, roomNo: room.roomNo });
+        }
+      }
+    }
+
+    const present = studentsInCourse.filter((s) => s.present);
+    const absent = studentsInCourse.filter((s) => !s.present);
+
+    return { course, present, absent, total: studentsInCourse.length };
+  });
+
+  container.innerHTML = courseReports
+    .map((r) => {
+      const absentRows = r.absent
+        .map((s, i) => `<tr><td>${i + 1}</td><td class="usn-code">${s.usn}</td><td>${s.name}</td><td>${s.roomNo}</td></tr>`)
+        .join("");
+
+      return `
+        <div class="rpt-course-card">
+          <div class="rpt-course-header">
+            <div>
+              <strong>${r.course.courseName}</strong> (${r.course.courseCode})
+              <span style="color:var(--text-secondary);font-size:0.85rem;"> — Sem ${r.course.semester}</span>
+            </div>
+            <div class="rpt-stats">
+              <span class="rpt-stat present">✓ ${r.present.length} Present</span>
+              <span class="rpt-stat absent">✗ ${r.absent.length} Absent</span>
+              <span class="rpt-stat total">Total: ${r.total}</span>
+            </div>
+          </div>
+          ${r.absent.length > 0 ? `
+            <div class="rpt-absent-list">
+              <table class="data-table">
+                <thead><tr><th>S.No</th><th>USN</th><th>Name</th><th>Room</th></tr></thead>
+                <tbody>${absentRows}</tbody>
+              </table>
+            </div>` : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All students present ✓</p>'}
+        </div>`;
+    })
+    .join("");
+}
+
+function renderRoomWiseReport(data) {
+  const container = document.getElementById("rpt-tab-room");
+  const attendance = data.attendance || [];
+
+  if (attendance.length === 0) {
+    container.innerHTML = '<p class="empty-state">No attendance data.</p>';
+    return;
+  }
+
+  container.innerHTML = attendance
+    .map((room) => {
+      const present = room.students.filter((s) => s.present);
+      const absent = room.students.filter((s) => !s.present);
+
+      // Group absent by semester
+      const absentBySem = {};
+      for (const s of absent) {
+        const sem = s.semester || "Unknown";
+        if (!absentBySem[sem]) absentBySem[sem] = [];
+        absentBySem[sem].push(s);
+      }
+
+      const absentSections = Object.keys(absentBySem)
+        .sort()
+        .map((sem) => {
+          const students = absentBySem[sem];
+          const rows = students
+            .map((s, i) => `<tr><td>${i + 1}</td><td class="usn-code">${s.usn}</td><td>${s.name}</td></tr>`)
+            .join("");
+          return `
+            <div style="margin-top:0.5rem;">
+              <div class="attendance-sem-label">Sem ${sem} — ${students.length} absent</div>
+              <table class="data-table"><thead><tr><th>S.No</th><th>USN</th><th>Name</th></tr></thead><tbody>${rows}</tbody></table>
+            </div>`;
+        })
+        .join("");
+
+      return `
+        <div class="rpt-course-card">
+          <div class="rpt-course-header">
+            <div><strong>Room: ${room.roomNo}</strong></div>
+            <div class="rpt-stats">
+              <span class="rpt-stat present">✓ ${present.length}</span>
+              <span class="rpt-stat absent">✗ ${absent.length}</span>
+              <span class="rpt-stat total">Total: ${room.students.length}</span>
+            </div>
+          </div>
+          ${absent.length > 0 ? absentSections : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All present ✓</p>'}
+        </div>`;
+    })
+    .join("");
+}
+
+function rptSwitchTab(tab) {
+  document.querySelectorAll("#rpt-view .tab-btn").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".rpt-tab-content").forEach((c) => c.classList.add("hidden"));
+
+  if (tab === "course") {
+    document.querySelector('#rpt-view .tab-btn:first-child').classList.add("active");
+    document.getElementById("rpt-tab-course").classList.remove("hidden");
+  } else {
+    document.querySelector('#rpt-view .tab-btn:last-child').classList.add("active");
+    document.getElementById("rpt-tab-room").classList.remove("hidden");
+  }
+}
+
+function rptBackToExams() {
+  document.getElementById("rpt-exam-select").classList.remove("hidden");
+  document.getElementById("rpt-view").classList.add("hidden");
+}
+
+function rptDownloadPdf() {
+  if (!rptSelectedAllocId) return;
+  openPdfPreview(`${API}/api/pdf/absent-report/${rptSelectedAllocId}`, "Absent Report PDF");
 }
