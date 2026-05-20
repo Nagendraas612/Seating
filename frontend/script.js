@@ -1474,6 +1474,7 @@ async function rptSelectExam(allocId) {
 
     renderCourseWiseReport(data);
     renderRoomWiseReport(data);
+    renderReportDownloadButtons(data);
     rptSwitchTab("course");
   } catch (err) {
     alert("Error loading report: " + err.message);
@@ -1662,4 +1663,20 @@ function rptBackToExams() {
 function rptDownloadPdf() {
   if (!rptSelectedAllocId) return;
   openPdfPreview(`${API}/api/pdf/absent-report/${rptSelectedAllocId}`, "Absent Report PDF");
+}
+
+function renderReportDownloadButtons(data) {
+  const container = document.getElementById("rpt-download-buttons");
+  const courses = data.courses || [];
+
+  let html = `<button class="btn-primary" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}', 'Complete Absent Report')">📄 Complete Report</button>`;
+
+  if (courses.length > 0) {
+    courses.forEach((course, idx) => {
+      const label = `${course.courseName} (Sem ${course.semester})`;
+      html += `<button class="btn-outline" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${idx}', '${label} — Absent Report')">📄 ${label}</button>`;
+    });
+  }
+
+  container.innerHTML = html;
 }

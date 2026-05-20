@@ -404,10 +404,8 @@
               <button class="tab-btn" onclick="rptSwitchTab('room')">Room-wise</button>
             </div>
 
-            <!-- Download button -->
-            <div style="margin-bottom:1rem;">
-              <button class="btn-primary" onclick="rptDownloadPdf()">📄 Download Absent Report PDF</button>
-            </div>
+            <!-- Download buttons (per course) -->
+            <div id="rpt-download-buttons" style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:10px;"></div>
 
             <!-- Course-wise tab -->
             <div id="rpt-tab-course" class="rpt-tab-content"></div>

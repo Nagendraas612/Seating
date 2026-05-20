@@ -848,7 +848,7 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="absent_report_${alloc.examName || "exam"}.pdf"`
+      `inline; filename="Absent_Report_${(alloc.examName || "exam").replace(/[^a-zA-Z0-9]/g, '_')}.pdf"`
     );
 
     const doc = new PDFDocument({ margin: 40, layout: "portrait" });
@@ -1052,7 +1052,7 @@ app.get("/api/pdf/absent-report/:id/course/:courseIdx", isLoggedIn, async (req, 
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition",
-      `inline; filename="absent_${course.courseCode || "course"}_${sem}.pdf"`);
+      `inline; filename="Absent_Report_${course.courseName.replace(/[^a-zA-Z0-9]/g, '_')}_Sem${sem}.pdf"`);
 
     const doc = new PDFDocument({ margin: 40, layout: "portrait" });
     doc.on("error", (err) => { if (!res.headersSent) res.status(500).end(); else res.end(); });
@@ -1146,7 +1146,7 @@ app.get("/api/pdf/absent-report/:id/room/:roomNo", isLoggedIn, async (req, res) 
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition",
-      `inline; filename="absent_room_${roomNo}.pdf"`);
+      `inline; filename="Absent_Report_Room_${roomNo}.pdf"`);
 
     const doc = new PDFDocument({ margin: 40, layout: "portrait" });
     doc.on("error", (err) => { if (!res.headersSent) res.status(500).end(); else res.end(); });
