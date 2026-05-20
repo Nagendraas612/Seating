@@ -1572,6 +1572,7 @@ function renderCourseWiseReport(data) {
               <span class="rpt-stat present">✓ ${r.present.length} Present</span>
               <span class="rpt-stat absent">✗ ${r.absent.length} Absent</span>
               <span class="rpt-stat total">Total: ${r.total}</span>
+              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${courses.indexOf(r.course)}', '${r.course.courseName} — Absent Report')">📄 PDF</button>
             </div>
           </div>
           ${r.absent.length > 0 ? `
@@ -1631,6 +1632,7 @@ function renderRoomWiseReport(data) {
               <span class="rpt-stat present">✓ ${present.length}</span>
               <span class="rpt-stat absent">✗ ${absent.length}</span>
               <span class="rpt-stat total">Total: ${room.students.length}</span>
+              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/room/${room.roomNo}', 'Room ${room.roomNo} — Absent Report')">📄 PDF</button>
             </div>
           </div>
           ${absent.length > 0 ? absentSections : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All present ✓</p>'}

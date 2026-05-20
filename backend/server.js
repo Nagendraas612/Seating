@@ -1009,6 +1009,206 @@ app.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
   }
 });
 
+// --- PDF: Absent Report per Course ---
+app.get("/api/pdf/absent-report/:id/course/:courseIdx", isLoggedIn, async (req, res) => {
+  try {
+    const alloc = await Allocation.findById(req.params.id);
+    if (!alloc) return res.status(404).json({ error: "Allocation not found" });
+    if (!alloc.attendance || alloc.attendance.length === 0)
+      return res.status(400).json({ error: "No attendance data saved." });
+
+    const courseIdx = parseInt(req.params.courseIdx, 10);
+    const courses = alloc.courses || [];
+    if (courseIdx < 0 || courseIdx >= courses.length)
+      return res.status(400).json({ error: "Invalid course index." });
+
+    const course = courses[courseIdx];
+    const sem = course.semester;
+
+    // Build USN lookup fallback
+    const usnLookup = {};
+    if (alloc.attendanceByRoom) {
+      for (const room of alloc.attendanceByRoom) {
+        for (const s of room.students) {
+          if (s.usn) usnLookup[s.usn] = { name: s.name, semester: s.semester };
+        }
+      }
+    }
+
+    // Collect absent students for this course
+    const absentStudents = [];
+    for (const room of alloc.attendance) {
+      for (const s of room.students) {
+        if (s.semester === sem && !s.present) {
+          const lookup = usnLookup[s.usn] || {};
+          absentStudents.push({
+            usn: s.usn || "",
+            name: s.name || lookup.name || "",
+            roomNo: room.roomNo,
+          });
+        }
+      }
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition",
+      `inline; filename="absent_${course.courseCode || "course"}_${sem}.pdf"`);
+
+    const doc = new PDFDocument({ margin: 40, layout: "portrait" });
+    doc.on("error", (err) => { if (!res.headersSent) res.status(500).end(); else res.end(); });
+    res.on("close", () => { if (!doc.writableEnded) doc.end(); });
+    doc.pipe(res);
+
+    writeCollegeHeader(doc);
+    const pageWidth = doc.page.width;
+    const margin = doc.page.margins.left;
+    const usableWidth = pageWidth - 2 * margin;
+
+    doc.font("Helvetica-Bold").fontSize(14)
+      .text("Absent Students Report", margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(0.3);
+    doc.font("Helvetica-Bold").fontSize(12)
+      .text(`${course.courseName} (${course.courseCode}) — Sem ${sem}`, margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(0.2);
+    doc.font("Helvetica").fontSize(10)
+      .text(`${alloc.examName || ""} — ${alloc.date || ""} (${alloc.session || ""})`, margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(1);
+
+    if (absentStudents.length === 0) {
+      doc.font("Helvetica").fontSize(12).text("All students present ✓", { align: "center" });
+      doc.end();
+      return;
+    }
+
+    doc.font("Helvetica-Bold").fontSize(11).text(`Absent: ${absentStudents.length} student(s)`);
+    doc.moveDown(0.4);
+
+    // Table
+    const startX = margin + 10;
+    let y = doc.y;
+    const colW = [35, 120, 180, 80];
+
+    doc.font("Helvetica-Bold").fontSize(9);
+    doc.text("S.No", startX, y, { width: colW[0] });
+    doc.text("USN", startX + colW[0], y, { width: colW[1] });
+    doc.text("Name", startX + colW[0] + colW[1], y, { width: colW[2] });
+    doc.text("Room", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+    y += 14;
+    doc.moveTo(startX, y).lineTo(startX + 415, y).stroke();
+    y += 4;
+
+    doc.font("Helvetica").fontSize(9);
+    absentStudents.forEach((s, idx) => {
+      if (y > 720) { doc.addPage(); y = 40; }
+      doc.text(`${idx + 1}`, startX, y, { width: colW[0] });
+      doc.text(s.usn || "—", startX + colW[0], y, { width: colW[1] });
+      doc.text(s.name || "—", startX + colW[0] + colW[1], y, { width: colW[2] });
+      doc.text(s.roomNo || "—", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+      y += 16;
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error("Course absent report error:", err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+    else res.end();
+  }
+});
+
+// --- PDF: Absent Report per Room ---
+app.get("/api/pdf/absent-report/:id/room/:roomNo", isLoggedIn, async (req, res) => {
+  try {
+    const alloc = await Allocation.findById(req.params.id);
+    if (!alloc) return res.status(404).json({ error: "Allocation not found" });
+    if (!alloc.attendance || alloc.attendance.length === 0)
+      return res.status(400).json({ error: "No attendance data saved." });
+
+    const roomNo = req.params.roomNo;
+    const roomAtt = alloc.attendance.find((a) => a.roomNo === roomNo);
+    if (!roomAtt) return res.status(404).json({ error: `No attendance for room ${roomNo}.` });
+
+    // Build USN lookup fallback
+    const usnLookup = {};
+    if (alloc.attendanceByRoom) {
+      for (const room of alloc.attendanceByRoom) {
+        for (const s of room.students) {
+          if (s.usn) usnLookup[s.usn] = { name: s.name, semester: s.semester };
+        }
+      }
+    }
+
+    const absentStudents = roomAtt.students
+      .filter((s) => !s.present)
+      .map((s) => {
+        const lookup = usnLookup[s.usn] || {};
+        return { usn: s.usn || "", name: s.name || lookup.name || "", semester: s.semester || "" };
+      });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition",
+      `inline; filename="absent_room_${roomNo}.pdf"`);
+
+    const doc = new PDFDocument({ margin: 40, layout: "portrait" });
+    doc.on("error", (err) => { if (!res.headersSent) res.status(500).end(); else res.end(); });
+    res.on("close", () => { if (!doc.writableEnded) doc.end(); });
+    doc.pipe(res);
+
+    writeCollegeHeader(doc);
+    const pageWidth = doc.page.width;
+    const margin = doc.page.margins.left;
+    const usableWidth = pageWidth - 2 * margin;
+
+    doc.font("Helvetica-Bold").fontSize(14)
+      .text("Absent Students Report", margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(0.3);
+    doc.font("Helvetica-Bold").fontSize(12)
+      .text(`Room: ${roomNo}`, margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(0.2);
+    doc.font("Helvetica").fontSize(10)
+      .text(`${alloc.examName || ""} — ${alloc.date || ""} (${alloc.session || ""})`, margin, doc.y, { width: usableWidth, align: "center" });
+    doc.moveDown(1);
+
+    if (absentStudents.length === 0) {
+      doc.font("Helvetica").fontSize(12).text("All students present ✓", { align: "center" });
+      doc.end();
+      return;
+    }
+
+    doc.font("Helvetica-Bold").fontSize(11).text(`Absent: ${absentStudents.length} student(s)`);
+    doc.moveDown(0.4);
+
+    // Table
+    const startX = margin + 10;
+    let y = doc.y;
+    const colW = [35, 120, 200, 60];
+
+    doc.font("Helvetica-Bold").fontSize(9);
+    doc.text("S.No", startX, y, { width: colW[0] });
+    doc.text("USN", startX + colW[0], y, { width: colW[1] });
+    doc.text("Name", startX + colW[0] + colW[1], y, { width: colW[2] });
+    doc.text("Sem", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+    y += 14;
+    doc.moveTo(startX, y).lineTo(startX + 415, y).stroke();
+    y += 4;
+
+    doc.font("Helvetica").fontSize(9);
+    absentStudents.forEach((s, idx) => {
+      if (y > 720) { doc.addPage(); y = 40; }
+      doc.text(`${idx + 1}`, startX, y, { width: colW[0] });
+      doc.text(s.usn || "—", startX + colW[0], y, { width: colW[1] });
+      doc.text(s.name || "—", startX + colW[0] + colW[1], y, { width: colW[2] });
+      doc.text(s.semester || "—", startX + colW[0] + colW[1] + colW[2], y, { width: colW[3] });
+      y += 16;
+    });
+
+    doc.end();
+  } catch (err) {
+    console.error("Room absent report error:", err);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+    else res.end();
+  }
+});
+
 // ============================================================
 // PDF GENERATION ROUTES
 // ============================================================
