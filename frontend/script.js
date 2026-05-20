@@ -746,7 +746,6 @@ function setupPdfButtons(allocId) {
 function openPdfPreview(url, title) {
   document.getElementById("pdf-preview-title").textContent = title || "PDF Preview";
   document.getElementById("pdf-preview-iframe").src = url;
-  document.getElementById("pdf-download-link").href = url;
   document.getElementById("pdf-preview-modal").classList.remove("hidden");
 }
 
