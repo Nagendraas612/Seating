@@ -2021,3 +2021,41 @@ select:focus-visible {
 .att-status-badge.saved { background: var(--accent-light); color: var(--accent); }
 .att-status-badge.draft { background: #fef3c7; color: #d97706; }
 .att-status-badge.new { background: var(--bg-main); color: var(--text-muted); }
+
+/* Credits Marquee */
+.credits-marquee {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-width, 260px);
+  right: 0;
+  height: 24px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.credits-track {
+  display: flex;
+  gap: 16px;
+  white-space: nowrap;
+  animation: marqueeScroll 25s linear infinite;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.35;
+  padding-top: 6px;
+}
+
+.credits-track span {
+  flex-shrink: 0;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@media (max-width: 900px) {
+  .credits-marquee {
+    left: 0;
+  }
+}
