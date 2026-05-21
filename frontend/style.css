@@ -1122,6 +1122,13 @@ select:focus-visible {
   z-index: 999;
 }
 
+/* ============================================================
+   MOBILE BOTTOM NAV (phone only)
+   ============================================================ */
+.mobile-bottom-nav {
+  display: none;
+}
+
 @media (max-width: 900px) {
   :root { --sidebar-width: 0px; }
 
@@ -1129,6 +1136,9 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Move to top-right so it doesn't overlap the sidebar brand */
+    left: auto;
+    right: 12px;
   }
 
   .mobile-overlay {
@@ -1156,7 +1166,8 @@ select:focus-visible {
 
   .main-content {
     margin-left: 0;
-    padding: 60px 16px 20px 16px;
+    /* top padding for hamburger, bottom padding for bottom nav */
+    padding: 60px 16px 80px 16px;
   }
 
   .stats-grid {
@@ -1182,6 +1193,62 @@ select:focus-visible {
 
   .att-rooms-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Show bottom nav on mobile */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    background: #0d1117;
+    border-top: 1px solid rgba(255,255,255,.08);
+    z-index: 1002;
+    align-items: stretch;
+    justify-content: space-around;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.25);
+  }
+
+  .mob-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,.45);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+    padding: 6px 0;
+    letter-spacing: .02em;
+  }
+
+  .mob-nav-item.active {
+    color: #58a6ff;
+  }
+
+  .mob-nav-item:active {
+    opacity: 0.7;
+  }
+
+  .mob-nav-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .mob-nav-label {
+    font-size: 10px;
+  }
+
+  /* Credits marquee above bottom nav on mobile */
+  .credits-marquee {
+    bottom: 62px;
   }
 }
 

@@ -157,6 +157,13 @@ function showPage(pageName) {
   const navBtn = document.querySelector(`.nav-item[data-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add("active");
 
+  // Sync mobile bottom nav active state
+  document.querySelectorAll(".mob-nav-item").forEach((b) =>
+    b.classList.remove("active")
+  );
+  const mobNavBtn = document.querySelector(`.mob-nav-item[data-page="${pageName}"]`);
+  if (mobNavBtn) mobNavBtn.classList.add("active");
+
   // Close mobile menu if open
   const sidebar = document.querySelector(".sidebar");
   if (sidebar && sidebar.classList.contains("open")) {
