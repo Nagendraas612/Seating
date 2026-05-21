@@ -926,6 +926,17 @@ async function loadHistory() {
           const courseInfo = h.courses && h.courses.length > 0
             ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
             : "";
+
+          // Build per-course absent report buttons
+          let absentButtons = "";
+          if (h.courses && h.courses.length > 0) {
+            absentButtons = h.courses.map((c, idx) =>
+              `<a href="${API}/api/pdf/absent-report/${h._id}/course/${idx}" target="_blank" class="btn-pdf-small">📄 ${c.courseName}</a>`
+            ).join("");
+          } else {
+            absentButtons = `<a href="${API}/api/pdf/absent-report/${h._id}" target="_blank" class="btn-pdf-small">📄 Absentees Report</a>`;
+          }
+
           return `
       <div class="history-card">
         <h4>${h.examName}</h4>
@@ -934,7 +945,7 @@ async function loadHistory() {
         ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
         <div class="rooms-count">🏫 ${h.summary.length} room(s) &nbsp;|&nbsp; ${h.summary.reduce((s, r) => s + r.studentCount, 0)} students</div>
         <div class="history-pdf-btns">
-          <a href="${API}/api/pdf/attendance/${h._id}" target="_blank">✍️ Attendance PDF</a>
+          ${absentButtons}
           <button class="btn-delete-history" onclick="deleteAllocation('${h._id}')">🗑 Remove</button>
         </div>
       </div>`;
