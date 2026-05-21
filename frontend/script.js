@@ -1412,12 +1412,14 @@ async function loadAttendancePage() {
           const courseInfo = h.courses && h.courses.length > 0
             ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
             : "";
+          const studentCount = h.summary ? h.summary.reduce((s, r) => s + r.studentCount, 0) : 0;
           return `
       <div class="history-card" onclick="attSelectExam('${h._id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
-        <div class="meta">📅 ${h.date} · ${h.session}</div>
+        <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
+        <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
         ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
-        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
+        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
       </div>`;
         }
       )
@@ -1704,12 +1706,14 @@ async function loadReportsPage() {
           const courseInfo = h.courses && h.courses.length > 0
             ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
             : "";
+          const studentCount = h.summary ? h.summary.reduce((s, r) => s + r.studentCount, 0) : 0;
           return `
       <div class="history-card" onclick="rptSelectExam('${h._id}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
-        <div class="meta">📅 ${h.date} · ${h.session}</div>
+        <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
+        <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
         ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
-        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
+        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
       </div>`;
         }
       )
