@@ -2051,7 +2051,7 @@ select:focus-visible {
 
 @keyframes marqueeScroll {
   0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  100% { transform: translateX(-25%); }
 }
 
 @media (max-width: 900px) {
