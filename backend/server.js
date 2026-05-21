@@ -746,6 +746,17 @@ app.post(
       const summary = buildSummary(roomResults);
       const attendanceByRoom = buildAttendance(roomResults);
 
+      // --- If editing, delete the old allocation ---
+      const replaceId = req.body.replaceId;
+      if (replaceId) {
+        try {
+          await Allocation.findByIdAndDelete(replaceId);
+          console.log(`🔄 Replaced old allocation: ${replaceId}`);
+        } catch (delErr) {
+          console.warn("Could not delete old allocation:", delErr.message);
+        }
+      }
+
       // --- Save to MongoDB ---
       const allocation = new Allocation({
         examName,

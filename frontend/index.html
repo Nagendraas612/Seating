@@ -248,8 +248,13 @@
           <!-- ---- OUTPUT PREVIEW SECTION ---- -->
           <div id="output-section" class="output-section hidden">
             <div class="page-header" style="margin-top: 2rem;">
-              <h2>Output Preview</h2>
-              <p id="output-exam-label"></p>
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div>
+                  <h2>Output Preview</h2>
+                  <p id="output-exam-label"></p>
+                </div>
+                <button class="btn-outline" id="btn-edit-allocation" onclick="editCurrentAllocation()">✏️ Edit / Re-generate</button>
+              </div>
             </div>
 
             <!-- PDF Download Buttons -->

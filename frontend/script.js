@@ -475,6 +475,8 @@ document.addEventListener("change", (e) => {
 // ALLOCATION SUBMISSION
 // ============================================================
 
+let editingAllocationId = null; // Set when editing an existing allocation
+
 async function submitAllocation(event) {
   event.preventDefault();
 
@@ -510,6 +512,11 @@ async function submitAllocation(event) {
     formData.append("date", date);
     formData.append("session", session);
 
+    // If editing, pass the existing allocation ID to replace it
+    if (editingAllocationId) {
+      formData.append("replaceId", editingAllocationId);
+    }
+
     courseEntries.forEach((entry, idx) => {
       const courseName = entry.querySelector(".course-name").value.trim();
       const courseCode = entry.querySelector(".course-code").value.trim();
@@ -533,6 +540,7 @@ async function submitAllocation(event) {
 
     // Save allocation ID for PDF downloads
     currentAllocationId = data.allocationId;
+    editingAllocationId = null; // Reset edit mode
 
     // Display results
     displayAllocationOutput(data, examName, date, session);
@@ -542,6 +550,23 @@ async function submitAllocation(event) {
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("allocate-btn").disabled = false;
   }
+}
+
+// Edit current allocation — scroll to form and pre-fill details
+function editCurrentAllocation() {
+  if (!currentAllocationId) return;
+
+  // Set edit mode
+  editingAllocationId = currentAllocationId;
+
+  // Hide output, scroll to form
+  document.getElementById("output-section").classList.add("hidden");
+
+  // Scroll to form
+  document.getElementById("create-form").scrollIntoView({ behavior: "smooth" });
+
+  // Update button text to indicate edit mode
+  document.getElementById("allocate-btn").textContent = "🔄 Re-generate Seating Arrangement";
 }
 
 // ============================================================
