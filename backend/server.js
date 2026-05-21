@@ -782,9 +782,19 @@ app.get("/api/history", isLoggedIn, async (req, res) => {
   try {
     const list = await Allocation.find(
       {},
-      { examName: 1, date: 1, session: 1, createdAt: 1, summary: 1 }
+      { examName: 1, date: 1, session: 1, createdAt: 1, summary: 1, courses: 1 }
     ).sort({ createdAt: -1 });
     res.json(list);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE an allocation
+app.delete("/api/history/:id", isLoggedIn, async (req, res) => {
+  try {
+    await Allocation.findByIdAndDelete(req.params.id);
+    res.json({ message: "Allocation deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

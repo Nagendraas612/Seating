@@ -897,22 +897,43 @@ async function loadHistory() {
 
     container.innerHTML = history
       .map(
-        (h) => `
+        (h) => {
+          const courseInfo = h.courses && h.courses.length > 0
+            ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
+            : "";
+          return `
       <div class="history-card">
         <h4>${h.examName}</h4>
         <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
         <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
+        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
         <div class="rooms-count">🏫 ${h.summary.length} room(s) &nbsp;|&nbsp; ${h.summary.reduce((s, r) => s + r.studentCount, 0)} students</div>
         <div class="history-pdf-btns">
-          <a href="${API}/api/pdf/notice/${h._id}" target="_blank">📋 Notice</a>
-          <a href="${API}/api/pdf/seating/${h._id}" target="_blank">🪑 Seating</a>
-          <a href="${API}/api/pdf/attendance/${h._id}" target="_blank">✍️ Attendance</a>
+          <a href="${API}/api/pdf/attendance/${h._id}" target="_blank">✍️ Attendance PDF</a>
+          <button class="btn-delete-history" onclick="deleteAllocation('${h._id}')">🗑 Remove</button>
         </div>
-      </div>`
+      </div>`;
+        }
       )
       .join("");
   } catch (err) {
     console.error("History load error:", err);
+  }
+}
+
+// Delete an allocation from history
+async function deleteAllocation(id) {
+  if (!confirm("Are you sure you want to remove this allocation? This cannot be undone.")) return;
+  try {
+    const res = await fetch(`${API}/api/history/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadHistory();
+  } catch (err) {
+    alert("Error deleting allocation: " + err.message);
   }
 }
 

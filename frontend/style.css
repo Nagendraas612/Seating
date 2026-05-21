@@ -1957,3 +1957,19 @@ select:focus-visible {
 .rpt-absent-list {
   padding: 0.8rem 1.2rem;
 }
+
+/* History delete button */
+.btn-delete-history {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-delete-history:hover {
+  background: var(--danger);
+  color: #fff;
+}
