@@ -381,8 +381,13 @@
               </div>
             </div>
             <div id="att-student-list" class="form-card"></div>
-            <div style="margin-top:1rem;display:flex;gap:12px;">
-              <button class="btn-primary" onclick="attSaveAttendance()">💾 Save Attendance</button>
+            <div id="att-action-buttons" style="margin-top:1rem;display:flex;gap:12px;flex-wrap:wrap;">
+              <button class="btn-outline" onclick="attSaveAttendance('draft')">💾 Save as Draft</button>
+              <button class="btn-primary" onclick="attSaveAttendance('saved')">✅ Save</button>
+              <button class="btn-danger-solid" onclick="attFinalizeAttendance()">🔒 Finalize</button>
+            </div>
+            <div id="att-finalized-badge" class="hidden" style="margin-top:1rem;padding:12px 20px;background:var(--success-light);color:var(--success);border-radius:8px;font-weight:600;display:inline-block;">
+              🔒 Finalized — No further changes allowed
             </div>
           </div>
         </div>

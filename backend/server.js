@@ -113,6 +113,7 @@ const allocationSchema = new mongoose.Schema({
   attendance: [
     {
       roomNo: String,
+      status: { type: String, enum: ["draft", "saved", "finalized"], default: "draft" },
       savedAt: { type: Date, default: Date.now },
       students: [
         {
@@ -829,11 +830,13 @@ app.get("/api/history/:id", isLoggedIn, async (req, res) => {
 // POST save attendance for a specific room in an allocation
 app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
   try {
-    const { allocationId, roomNo, students } = req.body;
+    const { allocationId, roomNo, students, status } = req.body;
 
     if (!allocationId || !roomNo || !students) {
       return res.status(400).json({ error: "allocationId, roomNo, and students are required." });
     }
+
+    const validStatus = ["draft", "saved", "finalized"].includes(status) ? status : "draft";
 
     const allocation = await Allocation.findById(allocationId);
     if (!allocation) {
@@ -844,8 +847,15 @@ app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
     if (!allocation.attendance) allocation.attendance = [];
 
     const existingIdx = allocation.attendance.findIndex((a) => a.roomNo === roomNo);
+
+    // Block changes to finalized attendance
+    if (existingIdx >= 0 && allocation.attendance[existingIdx].status === "finalized") {
+      return res.status(403).json({ error: "This room's attendance has been finalized and cannot be changed." });
+    }
+
     const attendanceEntry = {
       roomNo,
+      status: validStatus,
       savedAt: new Date(),
       students: students.map((s) => ({
         usn: s.usn || "",
@@ -855,8 +865,6 @@ app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
       })),
     };
 
-    console.log(`📋 Saving attendance for room ${roomNo}: ${attendanceEntry.students.length} students, sample:`, attendanceEntry.students.slice(0, 2));
-
     if (existingIdx >= 0) {
       allocation.attendance[existingIdx] = attendanceEntry;
     } else {
@@ -864,7 +872,13 @@ app.post("/api/attendance/save", isLoggedIn, async (req, res) => {
     }
 
     await allocation.save();
-    res.json({ message: "Attendance saved successfully." });
+
+    const messages = {
+      draft: "Attendance saved as draft.",
+      saved: "Attendance saved successfully.",
+      finalized: "Attendance finalized. No further changes allowed.",
+    };
+    res.json({ message: messages[validStatus], status: validStatus });
   } catch (err) {
     console.error("Save attendance error:", err);
     res.status(500).json({ error: err.message });

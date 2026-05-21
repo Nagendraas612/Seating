@@ -1440,14 +1440,25 @@ async function attSelectExam(allocId, examName, date, session) {
       return;
     }
 
+    // Build room cards with status badges
+    const attData = data.attendance || [];
     grid.innerHTML = data.attendanceByRoom
       .map(
-        (room) => `
+        (room) => {
+          const roomAtt = attData.find((a) => a.roomNo === room.roomNo);
+          const status = roomAtt ? (roomAtt.status || "draft") : "";
+          const badge = status === "finalized" ? '<span class="att-status-badge finalized">🔒 Finalized</span>'
+            : status === "saved" ? '<span class="att-status-badge saved">✅ Saved</span>'
+            : status === "draft" ? '<span class="att-status-badge draft">💾 Draft</span>'
+            : '<span class="att-status-badge new">○ Not marked</span>';
+          return `
       <div class="att-room-card" onclick="attSelectRoom('${allocId}', '${room.roomNo}')">
         <div class="att-room-icon">🏫</div>
         <div class="att-room-name">${room.roomNo}</div>
         <div class="att-room-count">${room.students.length} students</div>
-      </div>`
+        ${badge}
+      </div>`;
+        }
       )
       .join("");
   } catch (err) {
@@ -1476,6 +1487,7 @@ async function attSelectRoom(allocId, roomNo) {
     // Check if attendance was already saved
     const savedAttendance = data.attendance || [];
     const savedRoom = savedAttendance.find((a) => a.roomNo === roomNo);
+    const roomStatus = savedRoom ? (savedRoom.status || "draft") : "new";
 
     // Build student list with attendance state
     attStudentData = room.students.map((s) => {
@@ -1487,6 +1499,22 @@ async function attSelectRoom(allocId, roomNo) {
     });
 
     renderAttendanceMarking();
+
+    // Handle finalized state — disable editing
+    const actionBtns = document.getElementById("att-action-buttons");
+    const finalizedBadge = document.getElementById("att-finalized-badge");
+
+    if (roomStatus === "finalized") {
+      actionBtns.classList.add("hidden");
+      finalizedBadge.classList.remove("hidden");
+      // Disable all checkboxes
+      document.querySelectorAll('#att-student-list input[type="checkbox"]').forEach((cb) => {
+        cb.disabled = true;
+      });
+    } else {
+      actionBtns.classList.remove("hidden");
+      finalizedBadge.classList.add("hidden");
+    }
   } catch (err) {
     alert("Error loading room: " + err.message);
   }
@@ -1590,7 +1618,7 @@ function attMarkAllAbsent() {
   renderAttendanceMarking();
 }
 
-async function attSaveAttendance() {
+async function attSaveAttendance(status) {
   if (!attSelectedAllocId || !attSelectedRoomNo) return;
 
   try {
@@ -1601,6 +1629,7 @@ async function attSaveAttendance() {
       body: JSON.stringify({
         allocationId: attSelectedAllocId,
         roomNo: attSelectedRoomNo,
+        status: status || "draft",
         students: attStudentData.map((s) => ({
           usn: s.usn,
           name: s.name,
@@ -1613,10 +1642,18 @@ async function attSaveAttendance() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    alert("Attendance saved successfully!");
+    alert(data.message);
+
+    // Navigate back to room list
+    attBackToRooms();
   } catch (err) {
-    alert("Error saving attendance: " + err.message);
+    alert("Error: " + err.message);
   }
+}
+
+function attFinalizeAttendance() {
+  if (!confirm("Are you sure you want to finalize this room's attendance?\n\nOnce finalized, it CANNOT be changed.")) return;
+  attSaveAttendance("finalized");
 }
 
 function attBackToExams() {

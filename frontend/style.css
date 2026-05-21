@@ -1990,3 +1990,34 @@ select:focus-visible {
   background: var(--accent);
   color: #fff;
 }
+
+/* Finalize button (danger solid) */
+.btn-danger-solid {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn-danger-solid:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+/* Attendance status badges */
+.att-status-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.att-status-badge.finalized { background: var(--success-light); color: var(--success); }
+.att-status-badge.saved { background: var(--accent-light); color: var(--accent); }
+.att-status-badge.draft { background: #fef3c7; color: #d97706; }
+.att-status-badge.new { background: var(--bg-main); color: var(--text-muted); }
