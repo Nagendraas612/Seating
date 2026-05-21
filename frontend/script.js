@@ -1408,12 +1408,18 @@ async function loadAttendancePage() {
 
     grid.innerHTML = history
       .map(
-        (h) => `
+        (h) => {
+          const courseInfo = h.courses && h.courses.length > 0
+            ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
+            : "";
+          return `
       <div class="history-card" onclick="attSelectExam('${h._id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
         <div class="meta">📅 ${h.date} · ${h.session}</div>
+        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
         <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
-      </div>`
+      </div>`;
+        }
       )
       .join("");
   } catch (err) {
@@ -1694,12 +1700,18 @@ async function loadReportsPage() {
     // Only show exams that have attendance saved
     grid.innerHTML = history
       .map(
-        (h) => `
+        (h) => {
+          const courseInfo = h.courses && h.courses.length > 0
+            ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
+            : "";
+          return `
       <div class="history-card" onclick="rptSelectExam('${h._id}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
         <div class="meta">📅 ${h.date} · ${h.session}</div>
+        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
         <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s)</div>
-      </div>`
+      </div>`;
+        }
       )
       .join("");
   } catch (err) {
