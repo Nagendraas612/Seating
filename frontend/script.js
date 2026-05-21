@@ -1510,7 +1510,7 @@ function renderAttendanceMarking() {
       const rows = students
         .map(
           (s, idx) => `
-        <tr class="${s.present ? "" : "absent-row"}">
+        <tr class="${s.present ? "" : "absent-row"}" data-usn="${s.usn}">
           <td>${idx + 1}</td>
           <td class="usn-code">${s.usn}</td>
           <td>${s.name}</td>
@@ -1526,7 +1526,7 @@ function renderAttendanceMarking() {
 
       return `
         <div class="attendance-sem-section">
-          <div class="attendance-sem-label">Semester ${sem} — ${presentCount}/${students.length} Present</div>
+          <div class="attendance-sem-label" data-sem="${sem}">Semester ${sem} — ${presentCount}/${students.length} Present</div>
           <table class="data-table">
             <thead>
               <tr><th>S.No</th><th>USN</th><th>Name</th><th>Status</th></tr>
@@ -1541,7 +1541,43 @@ function renderAttendanceMarking() {
 function attToggleStudent(usn, isPresent) {
   const student = attStudentData.find((s) => s.usn === usn);
   if (student) student.present = isPresent;
-  renderAttendanceMarking();
+
+  // Update just the visual state without re-rendering the whole list
+  const row = document.querySelector(`tr[data-usn="${usn}"]`);
+  if (row) {
+    const label = row.querySelector(".att-toggle-label");
+    if (isPresent) {
+      row.classList.remove("absent-row");
+      label.textContent = "P";
+      label.classList.remove("absent");
+      label.classList.add("present");
+    } else {
+      row.classList.add("absent-row");
+      label.textContent = "A";
+      label.classList.remove("present");
+      label.classList.add("absent");
+    }
+  }
+
+  // Update the semester header counts
+  updateAttendanceCounts();
+}
+
+function updateAttendanceCounts() {
+  const semGroups = {};
+  for (const s of attStudentData) {
+    const sem = s.semester || "Unknown";
+    if (!semGroups[sem]) semGroups[sem] = { total: 0, present: 0 };
+    semGroups[sem].total++;
+    if (s.present) semGroups[sem].present++;
+  }
+
+  document.querySelectorAll(".attendance-sem-label[data-sem]").forEach((label) => {
+    const sem = label.dataset.sem;
+    if (semGroups[sem]) {
+      label.textContent = `Semester ${sem} — ${semGroups[sem].present}/${semGroups[sem].total} Present`;
+    }
+  });
 }
 
 function attMarkAllPresent() {
