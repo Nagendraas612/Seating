@@ -241,7 +241,19 @@ app.get("/auth/status", (req, res) => {
 // FILE UPLOAD SETUP (multer - stores in memory for processing)
 // ============================================================
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max per file
+  fileFilter: (req, file, cb) => {
+    const allowedExt = [".xlsx", ".xls", ".csv"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedExt.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type: ${ext}. Only .xlsx, .xls, .csv are allowed.`));
+    }
+  },
+});
 
 // ============================================================
 // ROOM MANAGEMENT ROUTES
@@ -623,7 +635,15 @@ function buildAttendance(roomResults) {
 app.post(
   "/api/allocate",
   isLoggedIn,
-  upload.any(), // Accept any field names (course_file_0, course_file_1, etc.)
+  (req, res, next) => {
+    upload.any()(req, res, (err) => {
+      if (err) {
+        // Multer errors (file too large, wrong type, etc.)
+        return res.status(400).json({ error: err.message });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const { examName, date, session } = req.body;
