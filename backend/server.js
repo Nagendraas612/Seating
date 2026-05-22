@@ -237,7 +237,10 @@ function isLoggedIn(req, res, next) {
 // Start Google login
 app.get(
   "/auth/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    prompt: "select_account", // Always show account picker, never auto-select
+  })
 );
 
 // Google redirects here after login
