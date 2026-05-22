@@ -138,6 +138,8 @@ if (!process.env.SESSION_SECRET) {
   process.exit(1);
 }
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
@@ -146,7 +148,12 @@ app.use(
     store: MongoStore.create({
       mongoUrl: process.env.MONGO_URI || "mongodb://localhost:27017/aiml_seats",
     }),
-    cookie: { maxAge: 1000 * 60 * 60 * 8 }, // 8 hours
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 8, // 8 hours
+      httpOnly: true,              // JS cannot read the cookie (blocks XSS theft)
+      secure: isProduction,        // HTTPS only in production
+      sameSite: "lax",             // Blocks cross-site request forgery
+    },
   })
 );
 
