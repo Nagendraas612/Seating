@@ -19,6 +19,7 @@ const PDFDocument = require("pdfkit");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,30 @@ app.use(
 
 // Serve static frontend files (for production on Render)
 app.use(express.static(path.join(__dirname, "../frontend")));
+
+// ============================================================
+// RATE LIMITING
+// ============================================================
+
+// General API limiter: 100 requests per 15 minutes per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests. Please try again after 15 minutes." },
+});
+app.use("/api/", apiLimiter);
+
+// Stricter limiter for auth: 20 attempts per 15 minutes per IP
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please try again after 15 minutes." },
+});
+app.use("/auth/", authLimiter);
 
 // ============================================================
 // MONGODB CONNECTION
