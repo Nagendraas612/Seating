@@ -1114,23 +1114,14 @@ select:focus-visible {
   box-shadow: var(--shadow-md);
 }
 
-.mobile-logout-btn {
+/* Logout nav item — hidden on desktop (already in sidebar-user), shown on mobile */
+.nav-logout {
   display: none;
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 1001;
-  background: var(--danger);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  font-size: 18px;
-  text-align: center;
-  line-height: 40px;
-  text-decoration: none;
-  box-shadow: var(--shadow-md);
+  margin-top: auto;
+  color: var(--danger) !important;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: 14px;
+  margin-top: 16px;
 }
 
 .mobile-overlay {
@@ -1160,13 +1151,8 @@ select:focus-visible {
     right: 12px;
   }
 
-  .mobile-logout-btn {
+  .nav-logout {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Position top-left on mobile */
-    left: 12px;
-    right: auto;
   }
 
   .mobile-overlay {
