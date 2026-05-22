@@ -25,6 +25,9 @@ const helmet = require("helmet");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust Render's reverse proxy so secure cookies work correctly on HTTPS
+app.set("trust proxy", 1);
+
 // ============================================================
 // MIDDLEWARE SETUP
 // ============================================================
