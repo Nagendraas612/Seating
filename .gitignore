@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment variables — NEVER commit real secrets
+.env
+.env.local
+.env.production
+backend/.env
+env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+build/
+
+# Local scratch / test artifacts
+.scan/
+.scan-extracted/
+.zip-extracted/
+*.tmp

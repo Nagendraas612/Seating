@@ -1,0 +1,31 @@
+# Render Blueprint — provisions the AIML Seat Allotment service.
+# To use: in the Render dashboard click "New" → "Blueprint" → connect this repo.
+# Render reads this file and creates the service automatically.
+#
+# Real secret values must be entered via the Render dashboard
+# (Environment tab) — they MUST NOT live in this file.
+
+services:
+  - type: web
+    name: aiml-seat-allotment
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    healthCheckPath: /auth/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # set in dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        sync: false # https://<your-app>.onrender.com/auth/google/callback
+      - key: SESSION_SECRET
+        generateValue: true # Render generates a strong random value
+      - key: FRONTEND_URL
+        sync: false # https://<your-app>.onrender.com

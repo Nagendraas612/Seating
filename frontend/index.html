@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIML Seat Allotment System</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+
+    <!-- PWA install support -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AIML Seats" />
+
+    <link rel="stylesheet" href="style.css" />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+
+    <!-- ============================================================ -->
+    <!-- LOGIN SECTION -->
+    <!-- Shown when user is not authenticated -->
+    <!-- ============================================================ -->
+    <section id="login-section" class="page">
+      <div class="login-bg">
+        <div class="grid-overlay"></div>
+      </div>
+      <div class="login-card">
+        <div class="login-badge">INTERNAL EXAMINATION SYSTEM</div>
+        <h1 class="login-title">AIML<br /><span>Seat Allotment</span></h1>
+        <p class="login-sub">
+          Automate seating arrangements for internal exams.<br />Faculty access only.
+        </p>
+        <a href="/auth/google" class="btn-google">
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13 17.8 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.2-10 7.2-17z"/>
+            <path fill="#FBBC05" d="M10.6 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.6 2.5 10.9l8.1-6.2z"/>
+            <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.2-13.4-9.9l-8.1 6.2C6.6 42.6 14.7 48 24 48z"/>
+          </svg>
+          Sign in with Google
+        </a>
+
+        <!-- PWA install button — visible only when the browser supports installation
+             (Android/Chrome show beforeinstallprompt; iOS shows a hint via #ios-install-hint). -->
+        <button id="btn-install" class="btn-install hidden" type="button" onclick="installPwa()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12"></path>
+            <path d="m7 10 5 5 5-5"></path>
+            <path d="M5 21h14"></path>
+          </svg>
+          Install App
+        </button>
+
+        <!-- iOS doesn't expose beforeinstallprompt; show this hint on iOS only -->
+        <p id="ios-install-hint" class="ios-install-hint hidden">
+          📱 To install: tap <strong>Share</strong> → <strong>Add to Home Screen</strong>
+        </p>
+
+        <p class="login-note">Only authorized college accounts can access this system.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- MAIN APP (shown after login) -->
+    <!-- ============================================================ -->
+    <div id="app" class="hidden">
+
+      <!-- SIDEBAR NAVIGATION -->
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-icon">A</div>
+          <div>
+            <div class="brand-name">AIML</div>
+            <div class="brand-sub">Seat Allotment</div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-page="dashboard">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard
+          </button>
+          <button class="nav-item" data-page="create">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span> New Arrangement
+          </button>
+          <button class="nav-item" data-page="rooms">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Room Management
+          </button>
+          <button class="nav-item" data-page="history">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> History
+          </button>
+          <button class="nav-item" data-page="attendance">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg></span> Attendance
+          </button>
+          <button class="nav-item" data-page="reports">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Reports
+          </button>
+        </nav>
+
+        <div class="sidebar-user" id="user-info">
+          <img id="user-photo" src="" alt="User" />
+          <div>
+            <div id="user-name" class="user-name">Loading...</div>
+            <div id="user-email" class="user-email"></div>
+          </div>
+          <button type="button" class="logout-btn" title="Logout" onclick="logoutUser()">↩</button>
+        </div>
+      </aside>
+
+      <!-- MOBILE MENU TOGGLE -->
+      <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+      <div class="mobile-overlay hidden" id="mobile-overlay" onclick="toggleMobileMenu()"></div>
+
+      <!-- MOBILE BOTTOM NAV (phone only) -->
+      <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button class="mob-nav-item active" data-page="dashboard">
+          <span class="mob-nav-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </span>
+          <span class="mob-nav-label">Dashboard</span>
+        </button>
+        <button class="mob-nav-item" data-page="attendance">
+          <span class="mob-nav-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14l2 2 4-4"/></svg>
+          </span>
+          <span class="mob-nav-label">Attendance</span>
+        </button>
+        <button class="mob-nav-item" data-page="reports">
+          <span class="mob-nav-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </span>
+          <span class="mob-nav-label">Reports</span>
+        </button>
+      </nav>
+
+      <!-- MAIN CONTENT AREA -->
+      <main class="main-content">
+
+        <!-- ---- DASHBOARD PAGE ---- -->
+        <div id="page-dashboard" class="page-content active">
+          <div class="page-header">
+            <h2>Dashboard</h2>
+            <p>Overview of your examination seating system</p>
+          </div>
+
+          <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">▣</div>
+              <div class="stat-value" id="stat-rooms">—</div>
+              <div class="stat-label">Total Rooms</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">⬡</div>
+              <div class="stat-value" id="stat-enabled">—</div>
+              <div class="stat-label">Enabled Rooms</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">◷</div>
+              <div class="stat-value" id="stat-allocs">—</div>
+              <div class="stat-label">Past Allocations</div>
+            </div>
+          </div>
+
+          <div class="dash-actions">
+            <button class="btn-primary" onclick="showPage('create')">
+              + Create New Arrangement
+            </button>
+            <button class="btn-outline" onclick="showPage('history')">
+              View History
+            </button>
+          </div>
+
+          <div class="recent-section">
+            <h3>Recent Allocations</h3>
+            <div id="recent-list" class="recent-list">
+              <p class="empty-state">No allocations yet. Create your first one!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- CREATE ARRANGEMENT PAGE ---- -->
+        <div id="page-create" class="page-content">
+          <div class="page-header">
+            <h2>New Seating Arrangement</h2>
+            <p>Fill in exam details and upload student files</p>
+          </div>
+
+          <form id="create-form" class="form-card" onsubmit="submitAllocation(event)">
+
+            <!-- Exam Details -->
+            <div class="form-section">
+              <h3 class="section-title">① Exam Details</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Exam Name</label>
+                  <input type="text" id="examName" placeholder="e.g. CIE-II/I" required />
+                </div>
+                <div class="form-group">
+                  <label>Date</label>
+                  <input type="date" id="examDate" required />
+                </div>
+                <div class="form-group">
+                  <label>Session</label>
+                  <select id="examSession" required>
+                    <option value="">Select...</option>
+                    <option value="Morning">Morning</option>
+                    <option value="Afternoon">Afternoon</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Course Details (Dynamic) -->
+            <div class="form-section">
+              <h3 class="section-title">② Course Details</h3>
+              <div id="course-entries">
+                <!-- First course entry (always present) -->
+                <div class="course-entry" data-index="0">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Course Name</label>
+                      <input type="text" class="course-name" placeholder="e.g. Mathematics" required />
+                    </div>
+                    <div class="form-group">
+                      <label>Course Code</label>
+                      <input type="text" class="course-code" placeholder="e.g. 22MAT11" required />
+                    </div>
+                    <div class="form-group">
+                      <label>Semester</label>
+                      <select class="course-semester" required>
+                        <option value="">Select...</option>
+                        <option value="I">I</option>
+                        <option value="II">II</option>
+                        <option value="III">III</option>
+                        <option value="IV">IV</option>
+                        <option value="V">V</option>
+                        <option value="VI">VI</option>
+                        <option value="VII">VII</option>
+                        <option value="VIII">VIII</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="file-drop-zone course-drop-zone">
+                    <div class="drop-icon">📂</div>
+                    <p>Upload student file (Excel/CSV)</p>
+                    <input type="file" class="course-file" accept=".xlsx,.xls,.csv" required />
+                  </div>
+                  <div class="course-file-list file-list"></div>
+                </div>
+              </div>
+
+              <!-- Add Course Button -->
+              <button type="button" class="btn-add-course" onclick="addCourseEntry()">
+                + Add Another Course
+              </button>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="allocate-btn">
+                🎯 Generate Seating Arrangement
+              </button>
+            </div>
+          </form>
+
+          <!-- Loading Indicator (Skeleton) -->
+          <div id="loading" class="loading hidden">
+            <div class="skeleton-container">
+              <div class="skeleton-header"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-row short"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-row short"></div>
+              <div class="skeleton-row"></div>
+              <div class="skeleton-table">
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+                <div class="skeleton-cell"></div>
+              </div>
+            </div>
+            <p class="loading-text">Allocating seats... please wait</p>
+          </div>
+
+          <!-- ---- OUTPUT PREVIEW SECTION ---- -->
+          <div id="output-section" class="output-section hidden">
+            <div class="page-header" style="margin-top: 2rem; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+              <div>
+                <h2>Output Preview</h2>
+                <p id="output-exam-label"></p>
+              </div>
+              <button class="btn-outline" id="btn-edit-allocation">✏️ Edit / Re-generate</button>
+            </div>
+
+            <!-- PDF Download Buttons -->
+            <div class="pdf-actions" id="pdf-actions">
+              <button class="btn-pdf" id="btn-notice-pdf">📋 Download Notice Board PDF</button>
+              <button class="btn-pdf" id="btn-seating-pdf">🪑 Download Seating Layout PDF</button>
+              <button class="btn-pdf" id="btn-attendance-pdf">✍️ Download Attendance Sheet PDF</button>
+            </div>
+
+            <!-- Tab navigation for output -->
+            <div class="output-tabs">
+              <button class="tab-btn active" data-tab="notice">Notice Board</button>
+              <button class="tab-btn" data-tab="seating">Seating Layout</button>
+              <button class="tab-btn" data-tab="attendance">Attendance</button>
+            </div>
+
+            <!-- Notice Board Tab -->
+            <div id="tab-notice" class="tab-content active">
+              <div id="notice-table-container"></div>
+            </div>
+
+            <!-- Seating Layout Tab -->
+            <div id="tab-seating" class="tab-content">
+              <div id="seating-container"></div>
+            </div>
+
+            <!-- Attendance Tab -->
+            <div id="tab-attendance" class="tab-content">
+              <div id="attendance-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- ROOM MANAGEMENT PAGE ---- -->
+        <div id="page-rooms" class="page-content">
+          <div class="page-header">
+            <h2>Room Management</h2>
+            <p>Add, edit, enable or disable examination rooms</p>
+          </div>
+
+          <!-- Add Room Form -->
+          <div class="form-card" style="max-width: 600px; margin-bottom: 2rem;">
+            <h3 class="section-title">Add New Room</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" id="newRoomNo" placeholder="e.g. M-501" />
+              </div>
+              <div class="form-group">
+                <label>Number of Benches</label>
+                <input type="number" id="newRoomBenches" placeholder="e.g. 16" min="1" />
+              </div>
+              <div class="form-group" style="justify-content: flex-end; align-items: flex-end;">
+                <button class="btn-primary" onclick="addRoom()">Add Room</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Room Table -->
+          <div class="table-card" id="rooms-table-card">
+            <table class="data-table" id="rooms-table">
+              <thead>
+                <tr>
+                  <th>Room No</th>
+                  <th>Benches</th>
+                  <th>Capacity (×3)</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rooms-tbody">
+                <tr><td colspan="5" class="empty-cell">Loading rooms...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ---- HISTORY PAGE ---- -->
+        <div id="page-history" class="page-content">
+          <div class="page-header">
+            <h2>Allocation History</h2>
+            <p>Browse, preview, and download past seating arrangements</p>
+          </div>
+
+          <div id="history-list" class="history-grid">
+            <p class="empty-state">No history found.</p>
+          </div>
+        </div>
+
+        <!-- ---- ATTENDANCE PAGE ---- -->
+        <div id="page-attendance" class="page-content">
+          <div class="page-header">
+            <h2>Attendance</h2>
+            <p>Mark and save attendance for past allocations</p>
+          </div>
+
+          <!-- Step 1: Select Exam -->
+          <div id="att-exam-select">
+            <h3 class="section-title">Select Exam</h3>
+            <div id="att-exam-grid" class="history-grid">
+              <p class="empty-state">Loading exams...</p>
+            </div>
+          </div>
+
+          <!-- Step 2: Select Room (hidden initially) -->
+          <div id="att-room-select" class="hidden">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+              <button class="btn-outline" id="att-back-to-exams">← Back</button>
+              <h3 class="section-title" style="margin:0;border:none;padding:0;" id="att-selected-exam-title">Rooms</h3>
+            </div>
+            <div id="att-room-grid" class="att-rooms-grid"></div>
+          </div>
+
+          <!-- Step 3: Mark Attendance (hidden initially) -->
+          <div id="att-mark-section" class="hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1rem;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <button class="btn-outline" id="att-back-to-rooms">← Back</button>
+                <h3 class="section-title" style="margin:0;border:none;padding:0;" id="att-room-title">Mark Attendance</h3>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-outline" id="att-mark-all-present" style="padding:6px 14px;font-size:13px;">✓ All Present</button>
+                <button class="btn-outline" id="att-mark-all-absent" style="padding:6px 14px;font-size:13px;color:var(--danger);border-color:var(--danger);">✗ All Absent</button>
+              </div>
+            </div>
+            <div id="att-student-list" class="form-card"></div>
+            <!-- Save / Finalize action buttons (hidden when attendance is finalized) -->
+            <div id="att-action-buttons" style="margin-top:1rem;display:flex;gap:12px;flex-wrap:wrap;">
+              <button class="btn-outline" id="att-save-draft">💾 Save as Draft</button>
+              <button class="btn-primary" id="att-save">✅ Save</button>
+              <button class="btn-danger-solid" id="att-finalize">🔒 Finalize</button>
+            </div>
+            <!-- Shown when this room's attendance is already finalized -->
+            <div id="att-finalized-badge" class="hidden" style="margin-top:1rem;padding:12px 20px;background:var(--success-light);color:var(--success);border-radius:8px;font-weight:600;display:inline-block;">
+              🔒 Finalized — No further changes allowed
+            </div>
+          </div>
+        </div>
+
+        <!-- ---- REPORTS PAGE ---- -->
+        <div id="page-reports" class="page-content">
+          <div class="page-header">
+            <h2>Attendance Reports</h2>
+            <p>View course-wise and room-wise attendance reports</p>
+          </div>
+
+          <!-- Step 1: Select Exam -->
+          <div id="rpt-exam-select">
+            <h3 class="section-title">Select Exam</h3>
+            <div id="rpt-exam-grid" class="history-grid">
+              <p class="empty-state">Loading...</p>
+            </div>
+          </div>
+
+          <!-- Step 2: Report View (hidden initially) -->
+          <div id="rpt-view" class="hidden">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+              <button class="btn-outline" onclick="rptBackToExams()">← Back</button>
+              <h3 class="section-title" style="margin:0;border:none;padding:0;" id="rpt-exam-title">Report</h3>
+            </div>
+
+            <!-- Tabs -->
+            <div class="output-tabs" style="margin-bottom:1rem;">
+              <button class="tab-btn active" onclick="rptSwitchTab('course')">Course-wise</button>
+              <button class="tab-btn" onclick="rptSwitchTab('room')">Room-wise</button>
+            </div>
+
+            <!-- Download buttons (per course) -->
+            <div id="rpt-download-buttons" style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:10px;"></div>
+
+            <!-- Course-wise tab -->
+            <div id="rpt-tab-course" class="rpt-tab-content"></div>
+
+            <!-- Room-wise tab -->
+            <div id="rpt-tab-room" class="rpt-tab-content hidden"></div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- Credits Marquee -->
+      <div class="credits-marquee">
+        <div class="credits-track">
+          <span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span>
+        </div>
+      </div>
+    </div><!-- end #app -->
+
+    <!-- ============================================================ -->
+    <!-- EDIT ROOM MODAL -->
+    <!-- ============================================================ -->
+    <div id="edit-modal" class="modal-overlay hidden">
+      <div class="modal">
+        <h3>Edit Room</h3>
+        <input type="hidden" id="edit-room-id" />
+        <div class="form-group">
+          <label>Room Number</label>
+          <input type="text" id="edit-room-no" />
+        </div>
+        <div class="form-group">
+          <label>Benches</label>
+          <input type="number" id="edit-room-benches" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Enabled</label>
+          <select id="edit-room-enabled">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary" onclick="saveRoom()">Save</button>
+          <button class="btn-outline" onclick="closeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PDF PREVIEW MODAL -->
+    <!-- ============================================================ -->
+    <div id="pdf-preview-modal" class="modal-overlay hidden" onclick="closePdfPreview(event)">
+      <div class="pdf-modal">
+        <div class="pdf-modal-header">
+          <h3 id="pdf-preview-title">PDF Preview</h3>
+          <button class="btn-outline" onclick="closePdfPreview()" style="padding:6px 14px;font-size:13px;">✕ Close</button>
+        </div>
+        <iframe id="pdf-preview-iframe" class="pdf-iframe"></iframe>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
