@@ -1971,3 +1971,10 @@ function renderReportDownloadButtons(data) {
 
   container.innerHTML = html;
 }
+
+// ============================================================
+// PWA — Register Service Worker
+// ============================================================
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
