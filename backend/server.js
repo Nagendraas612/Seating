@@ -132,9 +132,15 @@ const Allocation = mongoose.model("Allocation", allocationSchema);
 // SESSION SETUP (uses MongoDB to persist sessions)
 // ============================================================
 
+// Fail fast if SESSION_SECRET is not set in production
+if (!process.env.SESSION_SECRET) {
+  console.error("❌ SESSION_SECRET environment variable is not set. Refusing to start.");
+  process.exit(1);
+}
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "aiml_secret_key_change_in_prod",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
