@@ -27,14 +27,12 @@ function showSkeleton(containerId, type) {
 
   switch (type) {
     case 'stats':
-      html = `<div class="skeleton-stats-grid">
-        ${Array(3).fill('').map(() => `
+      html = Array(3).fill('').map(() => `
           <div class="skeleton-stat-card">
             <div class="skeleton-icon"></div>
             <div class="skeleton-value"></div>
             <div class="skeleton-label"></div>
-          </div>`).join('')}
-      </div>`;
+          </div>`).join('');
       break;
 
     case 'table':
@@ -60,16 +58,14 @@ function showSkeleton(containerId, type) {
       break;
 
     case 'cards':
-      html = `<div class="history-grid">
-        ${Array(3).fill('').map(() => `
+      html = Array(3).fill('').map(() => `
           <div class="skeleton-card">
             <div class="skeleton-card-title"></div>
             <div class="skeleton-card-meta" style="width:55%;margin-top:8px;"></div>
             <div class="skeleton-card-meta" style="width:45%;margin-top:6px;"></div>
             <div class="skeleton-card-meta" style="width:65%;margin-top:6px;"></div>
             <div class="skeleton-card-footer"></div>
-          </div>`).join('')}
-      </div>`;
+          </div>`).join('');
       break;
 
     case 'list':
