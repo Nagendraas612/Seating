@@ -60,12 +60,13 @@ function showSkeleton(containerId, type) {
       break;
 
     case 'cards':
-      html = `<div class="skeleton-cards-grid">
-        ${Array(4).fill('').map(() => `
+      html = `<div class="history-grid">
+        ${Array(3).fill('').map(() => `
           <div class="skeleton-card">
             <div class="skeleton-card-title"></div>
-            <div class="skeleton-card-meta"></div>
-            <div class="skeleton-card-meta" style="width:35%"></div>
+            <div class="skeleton-card-meta" style="width:55%;margin-top:8px;"></div>
+            <div class="skeleton-card-meta" style="width:45%;margin-top:6px;"></div>
+            <div class="skeleton-card-meta" style="width:65%;margin-top:6px;"></div>
             <div class="skeleton-card-footer"></div>
           </div>`).join('')}
       </div>`;

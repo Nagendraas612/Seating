@@ -1514,34 +1514,34 @@ select:focus-visible {
 }
 
 .skeleton-card .skeleton-card-title {
-  width: 70%;
+  width: 55%;
   height: 18px;
   border-radius: 4px;
   background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .skeleton-card .skeleton-card-meta {
   width: 50%;
-  height: 14px;
+  height: 13px;
   border-radius: 4px;
   background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .skeleton-card .skeleton-card-footer {
-  width: 40%;
-  height: 12px;
+  width: 60%;
+  height: 13px;
   border-radius: 4px;
   background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  margin-top: 16px;
-  padding-top: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
