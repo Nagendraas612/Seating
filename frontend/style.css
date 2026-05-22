@@ -1114,6 +1114,25 @@ select:focus-visible {
   box-shadow: var(--shadow-md);
 }
 
+.mobile-logout-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1001;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  font-size: 18px;
+  text-align: center;
+  line-height: 40px;
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+
 .mobile-overlay {
   display: none;
   position: fixed;
@@ -1139,6 +1158,15 @@ select:focus-visible {
     /* Move to top-right so it doesn't overlap the sidebar brand */
     left: auto;
     right: 12px;
+  }
+
+  .mobile-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Position top-left on mobile */
+    left: 12px;
+    right: auto;
   }
 
   .mobile-overlay {
