@@ -20,6 +20,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const rateLimit = require("express-rate-limit");
+const helmet = require("helmet");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,13 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Security headers (helmet) — sets X-Frame-Options, X-Content-Type-Options,
+// Content-Security-Policy, and more in one line
+app.use(helmet({
+  // Allow inline scripts/styles needed by the frontend
+  contentSecurityPolicy: false,
+}));
 
 // Allow frontend (on different port or domain) to call backend
 app.use(
@@ -2309,6 +2317,19 @@ app.post("/api/attendance/absent-pdf", isLoggedIn, async (req, res) => {
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../frontend/index.html"));
+});
+
+// ============================================================
+// GLOBAL ERROR HANDLER
+// Catches any unhandled errors — never leaks stack traces in production
+// ============================================================
+
+app.use((err, req, res, next) => {
+  console.error("Unhandled error:", err);
+  const isDev = process.env.NODE_ENV !== "production";
+  res.status(err.status || 500).json({
+    error: isDev ? err.message : "An internal server error occurred.",
+  });
 });
 
 // ============================================================
