@@ -99,6 +99,19 @@ function showSkeleton(containerId, type) {
 // ============================================================
 
 window.addEventListener("DOMContentLoaded", async () => {
+  // Show error banner if redirected back due to unauthorized domain
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("error") === "unauthorized_domain") {
+    const note = document.querySelector(".login-note");
+    if (note) {
+      note.textContent = "⛔ Access denied. Only @vvce.ac.in accounts are allowed.";
+      note.style.color = "#f87171";
+      note.style.fontWeight = "600";
+    }
+    // Clean the URL so the error doesn't persist on refresh
+    window.history.replaceState({}, "", "/");
+  }
+
   try {
     const res = await fetch(`${API}/auth/status`, { credentials: "include" });
     const data = await res.json();

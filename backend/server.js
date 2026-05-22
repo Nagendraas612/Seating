@@ -169,8 +169,10 @@ passport.use(
       callbackURL: process.env.GOOGLE_CALLBACK_URL || "/auth/google/callback",
     },
     (accessToken, refreshToken, profile, done) => {
-      // Here you can restrict to specific email domains if needed
-      // e.g. if (!profile.emails[0].value.endsWith('@college.edu')) return done(null, false);
+      const email = profile.emails && profile.emails[0] && profile.emails[0].value;
+      if (!email || !email.endsWith("@vvce.ac.in")) {
+        return done(null, false, { message: "Access restricted to @vvce.ac.in accounts only." });
+      }
       return done(null, profile);
     }
   )
@@ -205,7 +207,7 @@ app.get(
 // Google redirects here after login
 app.get(
   "/auth/google/callback",
-  passport.authenticate("google", { failureRedirect: "/" }),
+  passport.authenticate("google", { failureRedirect: "/?error=unauthorized_domain" }),
   (req, res) => {
     // Redirect to frontend dashboard after successful login
     res.redirect(process.env.FRONTEND_URL || "http://localhost:3000");
