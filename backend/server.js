@@ -250,7 +250,13 @@ app.get(
 // Logout
 app.get("/auth/logout", (req, res) => {
   req.logout(() => {
-    res.json({ message: "Logged out successfully" });
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destroy error:", err);
+      }
+      res.clearCookie("connect.sid"); // Remove the session cookie from browser
+      res.redirect("/");
+    });
   });
 });
 
