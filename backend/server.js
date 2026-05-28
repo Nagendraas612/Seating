@@ -544,16 +544,23 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
 
       } else if (currentMode === 2) {
         // ---- 2-GROUP MODE: ABA BAB (with alternation) ----
-        // Use the two remaining active groups
-        const twoActive = activeGroups;
-        const semA2 = twoActive[0]; // More students of the two remaining
-        const semB2 = twoActive[1];
+        // Use the GLOBAL identity order so A/B labels never flip mid-allocation.
+        // Pick the two active groups in the same order they were ranked globally
+        // (globalSemA > globalSemB > globalSemC by initial count).
+        // This prevents the visual pattern from appearing identical across rows
+        // when the local sort would assign A/B in the opposite order.
+        const globalOrder = [globalSemA, globalSemB, globalSemC].filter(
+          (s) => s && remaining(s) > 0
+        );
+        const semA2 = globalOrder[0]; // Globally-ranked A (or B if A exhausted)
+        const semB2 = globalOrder[1]; // Globally-ranked B (or C if B exhausted)
 
-        // Determine row pattern based on room index and row index
+        // Determine row pattern based on room index and row index.
+        // roomStartsWithABA: even-indexed rooms start ABA, odd-indexed start BAB.
+        // Each subsequent row within the room flips the pattern.
+        // row 0 → same as room start, row 1 → flipped, row 2 → same as room start, etc.
         const roomStartsWithABA = roomIdx % 2 === 0;
-        const rowIsABA = roomStartsWithABA
-          ? row % 2 === 0
-          : row % 2 !== 0;
+        const rowIsABA = roomStartsWithABA ? (row % 2 === 0) : (row % 2 !== 0);
 
         const colSems = rowIsABA
           ? [semA2, semB2, semA2]
