@@ -219,10 +219,21 @@ function showAdminPage(pageName) {
   const navBtn = document.querySelector(`[data-admin-page="${pageName}"]`);
   if (navBtn) navBtn.classList.add("active");
 
+  // Close mobile menu if open
+  const sidebar = document.getElementById("admin-sidebar");
+  if (sidebar && sidebar.classList.contains("open")) toggleAdminMobileMenu();
+
   if (pageName === "admin-students") loadAdminStudents();
   if (pageName === "admin-courses") loadAdminCourses();
   if (pageName === "admin-rooms") loadRooms();
   if (pageName === "admin-accounts") loadAdminAccounts();
+}
+
+function toggleAdminMobileMenu() {
+  const sidebar = document.getElementById("admin-sidebar");
+  const overlay = document.getElementById("admin-mobile-overlay");
+  if (sidebar) sidebar.classList.toggle("open");
+  if (overlay) overlay.classList.toggle("hidden");
 }
 
 // ============================================================

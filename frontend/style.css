@@ -2300,3 +2300,99 @@ select:focus-visible {
   letter-spacing: .03em;
   text-transform: uppercase;
 }
+
+/* ============================================================
+   ADMIN APP MOBILE RESPONSIVE
+   ============================================================ */
+
+/* Admin app uses same sidebar/main-content layout as faculty app,
+   so the existing @media (max-width: 900px) rules already handle
+   the sidebar. We just need to ensure the admin bottom nav shows
+   and tables are scrollable. */
+
+/* Make all table-card containers scroll horizontally on small screens */
+@media (max-width: 900px) {
+  /* Admin main content — same padding as faculty */
+  #admin-main-content {
+    margin-left: 0;
+    padding: 60px 16px 80px 16px;
+  }
+
+  /* Admin sidebar — same slide-in behaviour */
+  #admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  #admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Show admin bottom nav */
+  #admin-mobile-bottom-nav {
+    display: flex !important;
+  }
+
+  /* Show admin hamburger */
+  #admin-mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Scrollable tables */
+  .table-card {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 480px;
+  }
+
+  /* Stack form rows on mobile */
+  .form-card .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* Admin form cards full width */
+  .form-card[style*="max-width"] {
+    max-width: 100% !important;
+  }
+
+  /* Course mode toggle wraps */
+  .course-mode-toggle {
+    flex-wrap: wrap;
+  }
+
+  .mode-btn {
+    flex: 1;
+    justify-content: center;
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Tighter padding on very small phones */
+  #admin-main-content {
+    padding: 60px 12px 80px 12px;
+  }
+
+  .page-header h2 {
+    font-size: 1.3rem;
+  }
+
+  /* Admin accounts table — hide created date on tiny screens */
+  #admin-accounts-tbody td:nth-child(2) {
+    display: none;
+  }
+  #admin-accounts-tbody + thead th:nth-child(2) {
+    display: none;
+  }
+}
