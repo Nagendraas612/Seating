@@ -496,6 +496,12 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
   const BENCHES_PER_ROW = 6;
   const finalRooms = [];
 
+  // Counter for rooms that run entirely (or start) in 2-group mode.
+  // Even = room starts ABA, Odd = room starts BAB.
+  // A room that transitions FROM 3-group mid-way does NOT count —
+  // only rooms where row 0 itself runs in 2-group mode increment this.
+  let twoGroupRoomCount = 0;
+
   for (let roomIdx = 0; roomIdx < rooms.length; roomIdx++) {
 
     if (!hasStudentsLeft()) break;
@@ -507,6 +513,13 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
       seating: [],
     };
 
+    // Determine this room's 2-group starting pattern BEFORE the row loop.
+    // Check if row 0 of this room will run in 2-group mode by peeking at
+    // the current active group count (queues haven't moved yet).
+    // Even twoGroupRoomCount = starts ABA, Odd = starts BAB.
+    const roomStartsABA = twoGroupRoomCount % 2 === 0;
+    let roomCountedForTwoGroup = false;
+
     for (let row = 0; row < ROWS_PER_ROOM; row++) {
 
       if (!hasStudentsLeft()) break;
@@ -515,8 +528,7 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
       const activeGroups = getActiveGroups();
       const currentMode = activeGroups.length;
 
-      if (currentMode >= 3) {
-        // ---- 3-GROUP MODE: ABC ABC (no alternation) ----
+      if (currentMode >= 3) {        // ---- 3-GROUP MODE: ABC ABC (no alternation) ----
         // Always: Left=A, Middle=B, Right=C
         const leftCol = [];
         const middleCol = [];
@@ -545,22 +557,24 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
       } else if (currentMode === 2) {
         // ---- 2-GROUP MODE: ABA BAB (with alternation) ----
         // Use the GLOBAL identity order so A/B labels never flip mid-allocation.
-        // Pick the two active groups in the same order they were ranked globally
-        // (globalSemA > globalSemB > globalSemC by initial count).
-        // This prevents the visual pattern from appearing identical across rows
-        // when the local sort would assign A/B in the opposite order.
         const globalOrder = [globalSemA, globalSemB, globalSemC].filter(
           (s) => s && remaining(s) > 0
         );
         const semA2 = globalOrder[0]; // Globally-ranked A (or B if A exhausted)
         const semB2 = globalOrder[1]; // Globally-ranked B (or C if B exhausted)
 
-        // Determine row pattern based on room index and row index.
-        // roomStartsWithABA: even-indexed rooms start ABA, odd-indexed start BAB.
-        // Each subsequent row within the room flips the pattern.
-        // row 0 → same as room start, row 1 → flipped, row 2 → same as room start, etc.
-        const roomStartsWithABA = roomIdx % 2 === 0;
-        const rowIsABA = roomStartsWithABA ? (row % 2 === 0) : (row % 2 !== 0);
+        // rowIsABA: uses the room-level roomStartsABA (computed once before
+        // the row loop) so all rows in this room share the same base pattern.
+        // Row 0 = room's base pattern, row 1 = flipped, row 2 = base again.
+        const rowIsABA = roomStartsABA ? (row % 2 === 0) : (row % 2 !== 0);
+
+        // Count this room once for the alternation counter,
+        // but ONLY if row 0 itself ran in 2-group mode.
+        // Transition rooms (row 0 was 3-group) don't shift the alternation.
+        if (!roomCountedForTwoGroup && row === 0) {
+          twoGroupRoomCount++;
+          roomCountedForTwoGroup = true;
+        }
 
         const colSems = rowIsABA
           ? [semA2, semB2, semA2]
@@ -593,7 +607,6 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
       } else if (currentMode === 1) {
         // ---- 1-GROUP MODE: A_A (Left=A, Middle=empty, Right=A) ----
         const lastSem = activeGroups[0];
-
         const leftCol = [];
         const rightCol = [];
 
