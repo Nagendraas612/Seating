@@ -453,6 +453,7 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
   // =========================================================
 
   function remaining(sem) {
+    if (!sem) return 0;
     return batches[sem].length - queues[sem];
   }
 
@@ -460,8 +461,6 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
     return semKeys.some((sem) => remaining(sem) > 0);
   }
 
-  // Pop next student from a semester queue. Returns null if exhausted.
-  // Uses groupToSemester to set the display semester label.
   function getNextStudent(sem) {
     if (!sem || queues[sem] >= batches[sem].length) return null;
     const student = batches[sem][queues[sem]++];
@@ -469,54 +468,41 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
     return { ...student, semester: displaySem };
   }
 
-  // Return [first, second] semesters sorted by remaining count.
-  function getTopTwoBatches() {
-    const avail = semKeys
-      .map((sem) => ({ sem, count: remaining(sem) }))
-      .filter((x) => x.count > 0)
-      .sort((a, b) => b.count - a.count);
-    if (avail.length === 0) return [null, null];
-    if (avail.length === 1) return [avail[0].sem, null];
-    return [avail[0].sem, avail[1].sem];
-  }
-
-  // Pop N students from a semester queue. Returns array (may contain nulls at end).
-  function getNextNStudents(sem, n) {
-    const result = [];
-    for (let i = 0; i < n; i++) {
-      result.push(getNextStudent(sem));
-    }
-    return result;
+  // Get active groups (those with remaining students), sorted by initial count (descending)
+  function getActiveGroups() {
+    return semKeys
+      .filter((sem) => remaining(sem) > 0)
+      .sort((a, b) => batches[b].length - batches[a].length); // Sort by INITIAL count for stable identity
   }
 
   // =========================================================
-  // STEP 3 — LOCK GLOBAL A/B IDENTITY (called exactly ONCE)
+  // STEP 3 — DETERMINE INITIAL MODE & GLOBAL IDENTITY
   //
-  // globalSemA = whichever semester starts with more students.
-  // globalSemB = the other semester.
-  // These NEVER change between rooms. This is the core fix.
+  // A = most students (initial), B = second, C = third (if exists)
+  // Identity is locked at start and never changes.
   // =========================================================
 
-  const [globalSemA, globalSemB] = getTopTwoBatches();
+  const sortedByCount = [...semKeys].sort((a, b) => batches[b].length - batches[a].length);
+  const globalSemA = sortedByCount[0] || null; // Most students
+  const globalSemB = sortedByCount[1] || null; // Second most
+  const globalSemC = sortedByCount[2] || null; // Third (may be null)
+
+  const totalGroups = sortedByCount.filter(s => batches[s].length > 0).length;
+
+  console.log(`📐 Seating mode: ${totalGroups} groups | A=${globalSemA}(${remaining(globalSemA)}) B=${globalSemB ? globalSemB + '(' + remaining(globalSemB) + ')' : 'none'} C=${globalSemC ? globalSemC + '(' + remaining(globalSemC) + ')' : 'none'}`);
 
   // =========================================================
-  // STEP 4 — ROOM-BY-ROOM ALLOCATION (COLUMN-FIRST FILL)
+  // STEP 4 — BENCH-BY-BENCH ALLOCATION WITH DYNAMIC FALLBACK
   //
-  // SINGLE COURSE (globalSemB is null):
-  //   Each bench: Left=A, Middle=EMPTY, Right=A
-  //   Fill Left column top-to-bottom, then Right column top-to-bottom
-  //   12 students per row, 36 per room
+  // 3 groups: ABC ABC ABC (every bench: Left=A, Middle=B, Right=C)
+  // 2 groups: ABA BAB ABA (row alternation + room alternation)
+  // 1 group:  A_A A_A (Left=A, Middle=empty, Right=A)
   //
-  // TWO COURSES (normal ABA/BAB):
-  //   Each bench has 3 seats: Left, Middle, Right.
-  //   ABA -> Left=A, Middle=B, Right=A
-  //   BAB -> Left=B, Middle=A, Right=B
-  //   18 students per row, 54 per room
+  // When a group runs out mid-allocation, immediately switch mode.
   // =========================================================
 
-  const singleCourse = !globalSemB; // Only one group uploaded
   const ROWS_PER_ROOM = 3;
-  const BENCHES_PER_ROW = 6; // Fixed: 18 benches / 3 rows
+  const BENCHES_PER_ROW = 6;
   const finalRooms = [];
 
   for (let roomIdx = 0; roomIdx < rooms.length; roomIdx++) {
@@ -530,17 +516,93 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
       seating: [],
     };
 
-    // Room-0,2,4... start ABA. Room-1,3,5... start BAB.
-    const roomStartsWithABA = roomIdx % 2 === 0;
-
     for (let row = 0; row < ROWS_PER_ROOM; row++) {
 
       if (!hasStudentsLeft()) break;
 
-      if (singleCourse) {
-        // SINGLE COURSE: Left=A, Middle=null, Right=A (column-first)
-        const leftCol = getNextNStudents(globalSemA, BENCHES_PER_ROW);
-        const rightCol = getNextNStudents(globalSemA, BENCHES_PER_ROW);
+      // Determine current mode based on how many groups still have students
+      const activeGroups = getActiveGroups();
+      const currentMode = activeGroups.length;
+
+      if (currentMode >= 3) {
+        // ---- 3-GROUP MODE: ABC ABC (no alternation) ----
+        // Always: Left=A, Middle=B, Right=C
+        const leftCol = [];
+        const middleCol = [];
+        const rightCol = [];
+
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          leftCol.push(getNextStudent(globalSemA));
+          middleCol.push(getNextStudent(globalSemB));
+          rightCol.push(getNextStudent(globalSemC));
+        }
+
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          const benchNum = row * BENCHES_PER_ROW + b + 1;
+          const benchData = {
+            row: row + 1,
+            bench: benchNum,
+            left: leftCol[b],
+            middle: middleCol[b],
+            right: rightCol[b],
+          };
+          if (benchData.left || benchData.middle || benchData.right) {
+            roomResult.seating.push(benchData);
+          }
+        }
+
+      } else if (currentMode === 2) {
+        // ---- 2-GROUP MODE: ABA BAB (with alternation) ----
+        // Use the two remaining active groups
+        const twoActive = activeGroups;
+        const semA2 = twoActive[0]; // More students of the two remaining
+        const semB2 = twoActive[1];
+
+        // Determine row pattern based on room index and row index
+        const roomStartsWithABA = roomIdx % 2 === 0;
+        const rowIsABA = roomStartsWithABA
+          ? row % 2 === 0
+          : row % 2 !== 0;
+
+        const colSems = rowIsABA
+          ? [semA2, semB2, semA2]
+          : [semB2, semA2, semB2];
+
+        const leftCol = [];
+        const middleCol = [];
+        const rightCol = [];
+
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          leftCol.push(getNextStudent(colSems[0]));
+          middleCol.push(getNextStudent(colSems[1]));
+          rightCol.push(getNextStudent(colSems[2]));
+        }
+
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          const benchNum = row * BENCHES_PER_ROW + b + 1;
+          const benchData = {
+            row: row + 1,
+            bench: benchNum,
+            left: leftCol[b],
+            middle: middleCol[b],
+            right: rightCol[b],
+          };
+          if (benchData.left || benchData.middle || benchData.right) {
+            roomResult.seating.push(benchData);
+          }
+        }
+
+      } else if (currentMode === 1) {
+        // ---- 1-GROUP MODE: A_A (Left=A, Middle=empty, Right=A) ----
+        const lastSem = activeGroups[0];
+
+        const leftCol = [];
+        const rightCol = [];
+
+        for (let b = 0; b < BENCHES_PER_ROW; b++) {
+          leftCol.push(getNextStudent(lastSem));
+          rightCol.push(getNextStudent(lastSem));
+        }
 
         for (let b = 0; b < BENCHES_PER_ROW; b++) {
           const benchNum = row * BENCHES_PER_ROW + b + 1;
@@ -555,40 +617,7 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
             roomResult.seating.push(benchData);
           }
         }
-      } else {
-        // TWO COURSES: ABA/BAB pattern
-        const rowIsABA = roomStartsWithABA
-          ? row % 2 === 0
-          : row % 2 !== 0;
-
-        // Determine which batch goes to which column
-        const colSems = rowIsABA
-          ? [globalSemA, globalSemB, globalSemA]
-          : [globalSemB, globalSemA, globalSemB];
-
-        // Fill columns top-to-bottom: get N students for each column
-        const leftCol = getNextNStudents(colSems[0], BENCHES_PER_ROW);
-        const middleCol = getNextNStudents(colSems[1], BENCHES_PER_ROW);
-        const rightCol = getNextNStudents(colSems[2], BENCHES_PER_ROW);
-
-        // Assemble benches from the three columns
-        for (let b = 0; b < BENCHES_PER_ROW; b++) {
-          const benchNum = row * BENCHES_PER_ROW + b + 1;
-
-          const benchData = {
-            row: row + 1,
-            bench: benchNum,
-            left: leftCol[b],
-            middle: middleCol[b],
-            right: rightCol[b],
-          };
-
-          // Only push if at least one seat is filled
-          if (benchData.left || benchData.middle || benchData.right) {
-            roomResult.seating.push(benchData);
-          }
-        }
-      } // end else (two courses)
+      }
     }
 
     finalRooms.push(roomResult);
