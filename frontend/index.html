@@ -336,50 +336,6 @@
           </div>
         </div>
 
-        <!-- ---- ROOM MANAGEMENT PAGE ---- -->
-        <div id="page-rooms" class="page-content">
-          <div class="page-header">
-            <h2>Room Management</h2>
-            <p>Add, edit, enable or disable examination rooms</p>
-          </div>
-
-          <!-- Add Room Form -->
-          <div class="form-card" style="max-width: 600px; margin-bottom: 2rem;">
-            <h3 class="section-title">Add New Room</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Room Number</label>
-                <input type="text" id="newRoomNo" placeholder="e.g. M-501" />
-              </div>
-              <div class="form-group">
-                <label>Number of Benches</label>
-                <input type="number" id="newRoomBenches" placeholder="e.g. 16" min="1" />
-              </div>
-              <div class="form-group" style="justify-content: flex-end; align-items: flex-end;">
-                <button class="btn-primary" onclick="addRoom()">Add Room</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Room Table -->
-          <div class="table-card" id="rooms-table-card">
-            <table class="data-table" id="rooms-table">
-              <thead>
-                <tr>
-                  <th>Room No</th>
-                  <th>Benches</th>
-                  <th>Capacity (×3)</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="rooms-tbody">
-                <tr><td colspan="5" class="empty-cell">Loading rooms...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- ---- HISTORY PAGE ---- -->
         <div id="page-history" class="page-content">
           <div class="page-header">

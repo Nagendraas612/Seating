@@ -338,9 +338,15 @@ app.post("/auth/admin/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid username or password." });
     }
 
-    // Store admin session
+    // Store admin session and explicitly save before responding
     req.session.adminUser = { id: admin._id, username: admin.username };
-    res.json({ success: true, username: admin.username });
+    req.session.save((err) => {
+      if (err) {
+        console.error("Session save error:", err);
+        return res.status(500).json({ error: "Session error. Please try again." });
+      }
+      res.json({ success: true, username: admin.username });
+    });
   } catch (err) {
     console.error("Admin login error:", err);
     res.status(500).json({ error: err.message });
