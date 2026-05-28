@@ -444,8 +444,11 @@ const upload = multer({
 // ROOM MANAGEMENT ROUTES
 // ============================================================
 
-// GET all rooms
-app.get("/api/rooms", isLoggedIn, async (req, res) => {
+// GET all rooms — accessible by both faculty (Google) and admin
+app.get("/api/rooms", async (req, res) => {
+  if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
+    return res.status(401).json({ error: "Unauthorized." });
+  }
   try {
     const rooms = await Room.find().sort({ roomNo: 1 });
     res.json(rooms);
@@ -454,7 +457,7 @@ app.get("/api/rooms", isLoggedIn, async (req, res) => {
   }
 });
 
-// POST add a new room
+// POST add a new room (admin only)
 app.post("/api/rooms", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
@@ -466,7 +469,7 @@ app.post("/api/rooms", isAdminLoggedIn, async (req, res) => {
   }
 });
 
-// PUT update a room
+// PUT update a room (admin only)
 app.put("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
@@ -481,25 +484,11 @@ app.put("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   }
 });
 
-// DELETE a room
+// DELETE a room (admin only)
 app.delete("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
     await Room.findByIdAndDelete(req.params.id);
     res.json({ message: "Room deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Also keep isLoggedIn-protected room routes for faculty read access
-app.get("/api/rooms", async (req, res) => {
-  // Allow both faculty (Google) and admin to read rooms
-  if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
-    return res.status(401).json({ error: "Unauthorized." });
-  }
-  try {
-    const rooms = await Room.find().sort({ roomNo: 1 });
-    res.json(rooms);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
