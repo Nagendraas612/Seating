@@ -33,16 +33,43 @@
         <p class="login-sub">
           Automate seating arrangements for internal exams.<br />Faculty access only.
         </p>
-        <a href="/auth/google" class="btn-google">
-          <svg width="20" height="20" viewBox="0 0 48 48">
-            <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13 17.8 9.5 24 9.5z"/>
-            <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.2-10 7.2-17z"/>
-            <path fill="#FBBC05" d="M10.6 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.6 2.5 10.9l8.1-6.2z"/>
-            <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.2-13.4-9.9l-8.1 6.2C6.6 42.6 14.7 48 24 48z"/>
-          </svg>
-          Sign in with Google
-        </a>
-        <p class="login-note">Only authorized college accounts can access this system.</p>
+
+        <!-- Faculty Login -->
+        <div id="faculty-login-panel">
+          <a href="/auth/google" class="btn-google">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.8 2.5 30.2 0 24 0 14.7 0 6.7 5.4 2.8 13.3l7.8 6C12.4 13 17.8 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.2-10 7.2-17z"/>
+              <path fill="#FBBC05" d="M10.6 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.8-6A24 24 0 0 0 0 24c0 3.9.9 7.6 2.5 10.9l8.1-6.2z"/>
+              <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.2 0-11.5-4.2-13.4-9.9l-8.1 6.2C6.6 42.6 14.7 48 24 48z"/>
+            </svg>
+            Sign in with Google
+          </a>
+          <p class="login-note">Only authorized college accounts can access this system.</p>
+          <div class="login-divider"><span>or</span></div>
+          <button class="btn-admin-toggle" onclick="toggleAdminLogin()">🔐 Admin Access</button>
+        </div>
+
+        <!-- Admin Login Panel (hidden by default) -->
+        <div id="admin-login-panel" class="hidden">
+          <div class="admin-login-header">
+            <span>🔐 Admin Access</span>
+            <button class="btn-back-faculty" onclick="toggleAdminLogin()">← Back</button>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="color:rgba(255,255,255,.6);font-size:13px;">Username</label>
+            <input type="text" id="admin-username" placeholder="Enter admin username" autocomplete="username"
+              style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:14px;outline:none;" />
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="color:rgba(255,255,255,.6);font-size:13px;">Password</label>
+            <input type="password" id="admin-password" placeholder="Enter password" autocomplete="current-password"
+              style="width:100%;padding:10px 14px;border-radius:8px;border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);color:#fff;font-size:14px;outline:none;"
+              onkeydown="if(event.key==='Enter') adminLogin()" />
+          </div>
+          <button class="btn-primary" style="width:100%;justify-content:center;" onclick="adminLogin()">Sign In as Admin</button>
+          <p id="admin-login-error" class="login-note" style="color:#f87171;margin-top:10px;display:none;"></p>
+        </div>
       </div>
     </section>
 
@@ -75,9 +102,6 @@
           </button>
           <button class="nav-item" data-page="reports">
             <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Reports
-          </button>
-          <button class="nav-item" data-page="rooms">
-            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Room Management
           </button>
           <button class="nav-item" data-page="history">
             <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> History
@@ -172,7 +196,7 @@
         <div id="page-create" class="page-content">
           <div class="page-header">
             <h2>New Seating Arrangement</h2>
-            <p>Fill in exam details and upload student files</p>
+            <p>Select semester and course — student data is loaded automatically from the database</p>
           </div>
 
           <form id="create-form" class="form-card" onsubmit="submitAllocation(event)">
@@ -208,17 +232,9 @@
                 <div class="course-entry" data-index="0">
                   <div class="form-row">
                     <div class="form-group">
-                      <label>Course Name</label>
-                      <input type="text" class="course-name" placeholder="e.g. Mathematics" required />
-                    </div>
-                    <div class="form-group">
-                      <label>Course Code</label>
-                      <input type="text" class="course-code" placeholder="e.g. 22MAT11" required />
-                    </div>
-                    <div class="form-group">
                       <label>Semester</label>
-                      <select class="course-semester" required>
-                        <option value="">Select...</option>
+                      <select class="course-semester" required onchange="loadCoursesForEntry(this)">
+                        <option value="">Select Semester...</option>
                         <option value="I">I</option>
                         <option value="II">II</option>
                         <option value="III">III</option>
@@ -229,13 +245,16 @@
                         <option value="VIII">VIII</option>
                       </select>
                     </div>
+                    <div class="form-group">
+                      <label>Course</label>
+                      <select class="course-select" required disabled>
+                        <option value="">Select semester first...</option>
+                      </select>
+                    </div>
                   </div>
-                  <div class="file-drop-zone course-drop-zone">
-                    <div class="drop-icon">📂</div>
-                    <p>Upload student file (Excel/CSV)</p>
-                    <input type="file" class="course-file" accept=".xlsx,.xls,.csv" required />
-                  </div>
-                  <div class="course-file-list file-list"></div>
+                  <!-- Hidden fields populated from course dropdown selection -->
+                  <input type="hidden" class="course-name" />
+                  <input type="hidden" class="course-code" />
                 </div>
               </div>
 
@@ -512,6 +531,192 @@
         <iframe id="pdf-preview-iframe" class="pdf-iframe"></iframe>
       </div>
     </div>
+
+    <!-- ============================================================ -->
+    <!-- ADMIN APP (shown after admin login) -->
+    <!-- ============================================================ -->
+    <div id="admin-app" class="hidden">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-icon">
+            <img src="logo.png" alt="AIML Logo" style="width:100%;height:100%;object-fit:contain;border-radius:10px;" />
+          </div>
+          <div>
+            <div class="brand-name">AIML</div>
+            <div class="brand-sub" style="color:#f59e0b;">Admin Panel</div>
+          </div>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-admin-page="admin-students">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Student Data
+          </button>
+          <button class="nav-item" data-admin-page="admin-courses">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span> Course Data
+          </button>
+          <button class="nav-item" data-admin-page="admin-rooms">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Room Management
+          </button>
+          <button class="nav-item" data-admin-page="admin-accounts">
+            <span class="nav-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></span> Admin Accounts
+          </button>
+        </nav>
+        <div class="sidebar-user">
+          <div style="width:34px;height:34px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:14px;flex-shrink:0;">A</div>
+          <div>
+            <div id="admin-username-display" class="user-name">Admin</div>
+            <div class="user-email">Admin Access</div>
+          </div>
+          <button class="logout-btn" title="Logout" onclick="adminLogout()">↩</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+
+        <!-- ---- STUDENT DATA PAGE ---- -->
+        <div id="page-admin-students" class="page-content active">
+          <div class="page-header">
+            <h2>Student Data</h2>
+            <p>Upload student lists per semester. Existing data will be replaced on re-upload.</p>
+          </div>
+
+          <!-- Upload Form -->
+          <div class="form-card" style="max-width:600px;margin-bottom:2rem;">
+            <h3 class="section-title">Upload Student List</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Semester</label>
+                <select id="student-upload-semester">
+                  <option value="">Select...</option>
+                  <option value="I">I</option><option value="II">II</option>
+                  <option value="III">III</option><option value="IV">IV</option>
+                  <option value="V">V</option><option value="VI">VI</option>
+                  <option value="VII">VII</option><option value="VIII">VIII</option>
+                </select>
+              </div>
+            </div>
+            <div class="file-drop-zone" style="margin-top:12px;">
+              <div class="drop-icon">📂</div>
+              <p>Upload Excel/CSV (columns: <strong>Name</strong>, <strong>USN</strong>)</p>
+              <input type="file" id="student-upload-file" accept=".xlsx,.xls,.csv" />
+            </div>
+            <div id="student-upload-file-name" style="font-size:13px;color:var(--success);margin-top:6px;"></div>
+            <button class="btn-primary" style="margin-top:12px;" onclick="uploadStudentData()">⬆ Upload Students</button>
+            <div id="student-upload-msg" style="margin-top:10px;font-size:13px;"></div>
+          </div>
+
+          <!-- Existing student data overview -->
+          <div class="table-card">
+            <table class="data-table">
+              <thead><tr><th>Semester</th><th>Student Count</th><th>Last Uploaded</th><th>Actions</th></tr></thead>
+              <tbody id="student-data-tbody"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ---- COURSE DATA PAGE ---- -->
+        <div id="page-admin-courses" class="page-content">
+          <div class="page-header">
+            <h2>Course Data</h2>
+            <p>Add course names and codes per semester. Faculty will select from these dropdowns.</p>
+          </div>
+
+          <!-- Add Course Form -->
+          <div class="form-card" style="max-width:700px;margin-bottom:2rem;">
+            <h3 class="section-title">Add Course</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Semester</label>
+                <select id="course-add-semester">
+                  <option value="">Select...</option>
+                  <option value="I">I</option><option value="II">II</option>
+                  <option value="III">III</option><option value="IV">IV</option>
+                  <option value="V">V</option><option value="VI">VI</option>
+                  <option value="VII">VII</option><option value="VIII">VIII</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Course Name</label>
+                <input type="text" id="course-add-name" placeholder="e.g. Mathematics" />
+              </div>
+              <div class="form-group">
+                <label>Course Code</label>
+                <input type="text" id="course-add-code" placeholder="e.g. 22MAT11" />
+              </div>
+              <div class="form-group" style="justify-content:flex-end;align-items:flex-end;">
+                <button class="btn-primary" onclick="addCourseData()">Add Course</button>
+              </div>
+            </div>
+            <div id="course-add-msg" style="margin-top:8px;font-size:13px;"></div>
+          </div>
+
+          <!-- Course list -->
+          <div class="table-card">
+            <table class="data-table">
+              <thead><tr><th>Semester</th><th>Course Name</th><th>Course Code</th><th>Actions</th></tr></thead>
+              <tbody id="course-data-tbody"><tr><td colspan="4" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ---- ROOM MANAGEMENT PAGE (Admin) ---- -->
+        <div id="page-admin-rooms" class="page-content">
+          <div class="page-header">
+            <h2>Room Management</h2>
+            <p>Add, edit, enable or disable examination rooms</p>
+          </div>
+          <div class="form-card" style="max-width:600px;margin-bottom:2rem;">
+            <h3 class="section-title">Add New Room</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Room Number</label>
+                <input type="text" id="newRoomNo" placeholder="e.g. M-501" />
+              </div>
+              <div class="form-group">
+                <label>Number of Benches</label>
+                <input type="number" id="newRoomBenches" placeholder="e.g. 16" min="1" />
+              </div>
+              <div class="form-group" style="justify-content:flex-end;align-items:flex-end;">
+                <button class="btn-primary" onclick="addRoom()">Add Room</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-card">
+            <table class="data-table" id="rooms-table">
+              <thead><tr><th>Room No</th><th>Benches</th><th>Capacity (×3)</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="rooms-tbody"><tr><td colspan="5" class="empty-cell">Loading rooms...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ---- ADMIN ACCOUNTS PAGE ---- -->
+        <div id="page-admin-accounts" class="page-content">
+          <div class="page-header">
+            <h2>Admin Accounts</h2>
+            <p>Create and manage admin accounts</p>
+          </div>
+          <div class="form-card" style="max-width:500px;margin-bottom:2rem;">
+            <h3 class="section-title">Create New Admin</h3>
+            <div class="form-group" style="margin-bottom:12px;">
+              <label>Username</label>
+              <input type="text" id="new-admin-username" placeholder="e.g. hodaiml" />
+            </div>
+            <div class="form-group" style="margin-bottom:16px;">
+              <label>Password</label>
+              <input type="password" id="new-admin-password" placeholder="Min 6 characters" />
+            </div>
+            <button class="btn-primary" onclick="createAdminAccount()">Create Account</button>
+            <div id="admin-create-msg" style="margin-top:10px;font-size:13px;"></div>
+          </div>
+          <div class="table-card">
+            <table class="data-table">
+              <thead><tr><th>Username</th><th>Created</th><th>Actions</th></tr></thead>
+              <tbody id="admin-accounts-tbody"><tr><td colspan="3" class="empty-cell">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+    </div><!-- end #admin-app -->
 
     <script src="script.js"></script>
   </body>

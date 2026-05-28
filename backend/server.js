@@ -21,6 +21,7 @@ const path = require("path");
 const fs = require("fs");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -156,6 +157,41 @@ const allocationSchema = new mongoose.Schema({
 });
 const Allocation = mongoose.model("Allocation", allocationSchema);
 
+// --- AdminUser Schema ---
+// Stores admin credentials (username + bcrypt-hashed password)
+const adminUserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true, trim: true },
+  passwordHash: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+const AdminUser = mongoose.model("AdminUser", adminUserSchema);
+
+// --- StudentData Schema ---
+// Stores student lists per semester, uploaded by admin via Excel
+const studentDataSchema = new mongoose.Schema({
+  semester: { type: String, required: true }, // "I", "II", ..., "VIII"
+  students: [
+    {
+      name: { type: String, required: true },
+      usn:  { type: String, required: true },
+    },
+  ],
+  uploadedAt: { type: Date, default: Date.now },
+});
+// One document per semester — upsert on re-upload
+studentDataSchema.index({ semester: 1 }, { unique: true });
+const StudentData = mongoose.model("StudentData", studentDataSchema);
+
+// --- CourseData Schema ---
+// Stores course name + code per semester, entered by admin
+const courseDataSchema = new mongoose.Schema({
+  semester: { type: String, required: true },
+  courseName: { type: String, required: true },
+  courseCode: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+const CourseData = mongoose.model("CourseData", courseDataSchema);
+
 // ============================================================
 // SESSION SETUP (uses MongoDB to persist sessions)
 // ============================================================
@@ -222,6 +258,12 @@ function isLoggedIn(req, res, next) {
   res.status(401).json({ error: "Unauthorized. Please login with Google." });
 }
 
+// Admin middleware — checks session for admin login
+function isAdminLoggedIn(req, res, next) {
+  if (req.session && req.session.adminUser) return next();
+  res.status(401).json({ error: "Unauthorized. Admin login required." });
+}
+
 // ============================================================
 // AUTH ROUTES
 // ============================================================
@@ -275,6 +317,112 @@ app.get("/auth/status", (req, res) => {
 });
 
 // ============================================================
+// ADMIN AUTH ROUTES (username + password, stored in MongoDB)
+// ============================================================
+
+// Admin login
+app.post("/auth/admin/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required." });
+    }
+
+    const admin = await AdminUser.findOne({ username: username.trim().toLowerCase() });
+    if (!admin) {
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
+
+    const match = await bcrypt.compare(password, admin.passwordHash);
+    if (!match) {
+      return res.status(401).json({ error: "Invalid username or password." });
+    }
+
+    // Store admin session
+    req.session.adminUser = { id: admin._id, username: admin.username };
+    res.json({ success: true, username: admin.username });
+  } catch (err) {
+    console.error("Admin login error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin logout
+app.post("/auth/admin/logout", (req, res) => {
+  req.session.adminUser = null;
+  res.json({ success: true });
+});
+
+// Admin status check
+app.get("/auth/admin/status", (req, res) => {
+  if (req.session && req.session.adminUser) {
+    res.json({ loggedIn: true, username: req.session.adminUser.username });
+  } else {
+    res.json({ loggedIn: false });
+  }
+});
+
+// Admin: create a new admin account (only callable when logged in as admin, or first-time setup)
+app.post("/auth/admin/register", async (req, res) => {
+  try {
+    // Allow registration only if already logged in as admin OR no admins exist yet
+    const adminCount = await AdminUser.countDocuments();
+    const isFirstSetup = adminCount === 0;
+    const isLoggedInAdmin = req.session && req.session.adminUser;
+
+    if (!isFirstSetup && !isLoggedInAdmin) {
+      return res.status(403).json({ error: "Only existing admins can create new admin accounts." });
+    }
+
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required." });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters." });
+    }
+
+    const existing = await AdminUser.findOne({ username: username.trim().toLowerCase() });
+    if (existing) {
+      return res.status(400).json({ error: "Username already exists." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const admin = new AdminUser({ username: username.trim().toLowerCase(), passwordHash });
+    await admin.save();
+
+    res.json({ success: true, message: "Admin account created." });
+  } catch (err) {
+    console.error("Admin register error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: list all admin accounts (usernames only)
+app.get("/auth/admin/list", isAdminLoggedIn, async (req, res) => {
+  try {
+    const admins = await AdminUser.find({}, { username: 1, createdAt: 1 });
+    res.json(admins);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: delete an admin account
+app.delete("/auth/admin/:id", isAdminLoggedIn, async (req, res) => {
+  try {
+    const count = await AdminUser.countDocuments();
+    if (count <= 1) {
+      return res.status(400).json({ error: "Cannot delete the last admin account." });
+    }
+    await AdminUser.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
 // FILE UPLOAD SETUP (multer - stores in memory for processing)
 // ============================================================
 
@@ -307,7 +455,7 @@ app.get("/api/rooms", isLoggedIn, async (req, res) => {
 });
 
 // POST add a new room
-app.post("/api/rooms", isLoggedIn, async (req, res) => {
+app.post("/api/rooms", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
     const room = new Room({ roomNo, benches: Number(benches), enabled });
@@ -319,7 +467,7 @@ app.post("/api/rooms", isLoggedIn, async (req, res) => {
 });
 
 // PUT update a room
-app.put("/api/rooms/:id", isLoggedIn, async (req, res) => {
+app.put("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
     const room = await Room.findByIdAndUpdate(
@@ -334,10 +482,178 @@ app.put("/api/rooms/:id", isLoggedIn, async (req, res) => {
 });
 
 // DELETE a room
-app.delete("/api/rooms/:id", isLoggedIn, async (req, res) => {
+app.delete("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
     await Room.findByIdAndDelete(req.params.id);
     res.json({ message: "Room deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Also keep isLoggedIn-protected room routes for faculty read access
+app.get("/api/rooms", async (req, res) => {
+  // Allow both faculty (Google) and admin to read rooms
+  if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
+    return res.status(401).json({ error: "Unauthorized." });
+  }
+  try {
+    const rooms = await Room.find().sort({ roomNo: 1 });
+    res.json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// STUDENT DATA ROUTES (Admin only)
+// ============================================================
+
+// Upload student list for a semester (replaces existing)
+app.post(
+  "/api/admin/students/upload",
+  isAdminLoggedIn,
+  (req, res, next) => {
+    upload.single("studentFile")(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message });
+      next();
+    });
+  },
+  async (req, res) => {
+    try {
+      const { semester } = req.body;
+      if (!semester) return res.status(400).json({ error: "Semester is required." });
+      if (!req.file) return res.status(400).json({ error: "Student file is required." });
+
+      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = xlsx.utils.sheet_to_json(sheet);
+
+      const students = rows
+        .map((row) => ({
+          name: (row["Name"] || row["name"] || row["NAME"] || "").toString().trim(),
+          usn:  (row["USN"]  || row["usn"]  || row["Usn"]  || "").toString().trim(),
+        }))
+        .filter((s) => s.name && s.usn);
+
+      if (students.length === 0) {
+        return res.status(400).json({ error: "No valid students found. Ensure columns are 'Name' and 'USN'." });
+      }
+
+      // Upsert: replace existing data for this semester
+      await StudentData.findOneAndUpdate(
+        { semester },
+        { semester, students, uploadedAt: new Date() },
+        { upsert: true, new: true }
+      );
+
+      res.json({ success: true, semester, count: students.length });
+    } catch (err) {
+      console.error("Student upload error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// GET student list for a semester (admin view)
+app.get("/api/admin/students/:semester", isAdminLoggedIn, async (req, res) => {
+  try {
+    const data = await StudentData.findOne({ semester: req.params.semester });
+    if (!data) return res.json({ semester: req.params.semester, students: [] });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all semesters that have student data (for admin overview)
+app.get("/api/admin/students", isAdminLoggedIn, async (req, res) => {
+  try {
+    const data = await StudentData.find({}, { semester: 1, uploadedAt: 1, "students": { $slice: 0 } })
+      .lean()
+      .then(docs => docs.map(d => ({ semester: d.semester, uploadedAt: d.uploadedAt, count: 0 })));
+    // Get counts separately
+    const counts = await StudentData.aggregate([
+      { $project: { semester: 1, uploadedAt: 1, count: { $size: "$students" } } }
+    ]);
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE student data for a semester
+app.delete("/api/admin/students/:semester", isAdminLoggedIn, async (req, res) => {
+  try {
+    await StudentData.findOneAndDelete({ semester: req.params.semester });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// COURSE DATA ROUTES (Admin only for write, Faculty for read)
+// ============================================================
+
+// GET courses for a semester (faculty + admin)
+app.get("/api/courses/:semester", async (req, res) => {
+  if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
+    return res.status(401).json({ error: "Unauthorized." });
+  }
+  try {
+    const courses = await CourseData.find({ semester: req.params.semester }).sort({ courseName: 1 });
+    res.json(courses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all courses grouped by semester (admin overview)
+app.get("/api/admin/courses", isAdminLoggedIn, async (req, res) => {
+  try {
+    const courses = await CourseData.find().sort({ semester: 1, courseName: 1 });
+    res.json(courses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST add a course (admin)
+app.post("/api/admin/courses", isAdminLoggedIn, async (req, res) => {
+  try {
+    const { semester, courseName, courseCode } = req.body;
+    if (!semester || !courseName || !courseCode) {
+      return res.status(400).json({ error: "semester, courseName, and courseCode are required." });
+    }
+    const course = new CourseData({ semester, courseName: courseName.trim(), courseCode: courseCode.trim() });
+    await course.save();
+    res.json({ success: true, course });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// PUT update a course (admin)
+app.put("/api/admin/courses/:id", isAdminLoggedIn, async (req, res) => {
+  try {
+    const { semester, courseName, courseCode } = req.body;
+    const course = await CourseData.findByIdAndUpdate(
+      req.params.id,
+      { semester, courseName: courseName.trim(), courseCode: courseCode.trim() },
+      { new: true }
+    );
+    res.json({ success: true, course });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE a course (admin)
+app.delete("/api/admin/courses/:id", isAdminLoggedIn, async (req, res) => {
+  try {
+    await CourseData.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -718,7 +1034,7 @@ function buildAttendance(roomResults) {
 // ============================================================
 // MAIN ALLOCATION ROUTE
 // POST /api/allocate
-// Accepts: exam details + course entries (each with courseName, courseCode, semester, file)
+// Students fetched from DB (StudentData). Legacy file upload still supported.
 // ============================================================
 
 app.post(
@@ -726,10 +1042,7 @@ app.post(
   isLoggedIn,
   (req, res, next) => {
     upload.any()(req, res, (err) => {
-      if (err) {
-        // Multer errors (file too large, wrong type, etc.)
-        return res.status(400).json({ error: err.message });
-      }
+      if (err) return res.status(400).json({ error: err.message });
       next();
     });
   },
@@ -744,27 +1057,21 @@ app.post(
       }
 
       // --- Parse course entries from form data ---
-      // Express with extended:true parses courses[0][semester] into req.body.courses array
+      // --- Parse course entries ---
       let courses = [];
-      
       if (Array.isArray(req.body.courses)) {
-        // Already parsed as array by Express
         courses = req.body.courses.map((c) => ({
           courseName: c.courseName || "",
           courseCode: c.courseCode || "",
           semester: c.semester || "",
         }));
       } else if (req.body.courses && typeof req.body.courses === "object") {
-        // Single entry parsed as object
-        courses = [
-          {
-            courseName: req.body.courses.courseName || "",
-            courseCode: req.body.courses.courseCode || "",
-            semester: req.body.courses.semester || "",
-          },
-        ];
+        courses = [{
+          courseName: req.body.courses.courseName || "",
+          courseCode: req.body.courses.courseCode || "",
+          semester: req.body.courses.semester || "",
+        }];
       } else {
-        // Fallback: try bracket notation (in case multer doesn't parse nested)
         let i = 0;
         while (req.body[`courses[${i}][semester]`]) {
           courses.push({
@@ -779,88 +1086,66 @@ app.post(
       console.log("📋 Parsed courses:", courses);
 
       if (courses.length === 0) {
-        return res
-          .status(400)
-          .json({ error: "At least one course entry is required." });
+        return res.status(400).json({ error: "At least one course entry is required." });
       }
 
-      if (!req.files || req.files.length === 0) {
-        return res
-          .status(400)
-          .json({ error: "At least one student file is required." });
-      }
-
-      // --- Group students by COURSE ENTRY (not semester) for ABA/BAB mixing ---
-      // Each course entry = one group. The semester is stored as metadata for display.
-      // Key format: "idx_semester" to keep groups unique even if same semester
-      const courseStudents = {}; // { "0_IV": [...], "1_VI": [...] }
+      // --- Build student groups from DB (with legacy file fallback) ---
+      const courseStudents = {};
+      const hasFiles = req.files && req.files.length > 0;
 
       for (let idx = 0; idx < courses.length; idx++) {
         const course = courses[idx];
         const semester = course.semester;
-        const groupKey = `${idx}_${semester}`; // Unique per course entry
+        const groupKey = `${idx}_${semester}`;
 
-        // Find the file for this course entry
-        const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);
-        if (!file) {
-          return res.status(400).json({
-            error: `No file uploaded for course entry ${idx + 1} (${course.courseName || semester}).`,
-          });
-        }
-
-        try {
-          const workbook = xlsx.read(file.buffer, { type: "buffer" });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = xlsx.utils.sheet_to_json(sheet);
-
-          const students = rows
-            .map((row) => {
-              const name = row["Name"] || row["name"] || row["NAME"] || "";
-              const usn = row["USN"] || row["usn"] || row["Usn"] || "";
-              return { name: name.trim(), usn: usn.trim() };
-            })
-            .filter((s) => s.name && s.usn);
-
-          if (students.length === 0) {
+        const dbData = await StudentData.findOne({ semester });
+        if (dbData && dbData.students && dbData.students.length > 0) {
+          courseStudents[groupKey] = dbData.students.map((s) => ({ name: s.name, usn: s.usn }));
+          console.log(`📚 Loaded ${courseStudents[groupKey].length} students for Sem ${semester} from DB`);
+        } else if (hasFiles) {
+          const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);
+          if (!file) {
             return res.status(400).json({
-              error: `No valid students found in file for ${course.courseName || semester}.`,
+              error: `No student data in DB for Semester ${semester} and no file uploaded for entry ${idx + 1}.`,
             });
           }
-
-          courseStudents[groupKey] = students;
-        } catch (fileErr) {
-          console.error(`Error parsing file ${file.originalname}:`, fileErr);
+          try {
+            const workbook = xlsx.read(file.buffer, { type: "buffer" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = xlsx.utils.sheet_to_json(sheet);
+            const students = rows
+              .map((row) => ({
+                name: (row["Name"] || row["name"] || row["NAME"] || "").toString().trim(),
+                usn:  (row["USN"]  || row["usn"]  || row["Usn"]  || "").toString().trim(),
+              }))
+              .filter((s) => s.name && s.usn);
+            if (students.length === 0) {
+              return res.status(400).json({ error: `No valid students in file for ${course.courseName || semester}.` });
+            }
+            courseStudents[groupKey] = students;
+          } catch (fileErr) {
+            return res.status(400).json({ error: `Failed to parse file: ${fileErr.message}` });
+          }
+        } else {
           return res.status(400).json({
-            error: `Failed to parse file ${file.originalname}: ${fileErr.message}`,
+            error: `No student data found for Semester ${semester}. Please ask admin to upload student data first.`,
           });
         }
       }
 
       if (Object.keys(courseStudents).length === 0) {
-        return res
-          .status(400)
-          .json({ error: "No valid students found in uploaded files." });
+        return res.status(400).json({ error: "No valid students found." });
       }
 
-      console.log(
-        `✅ Parsed students into course groups:`,
-        Object.entries(courseStudents).map(([key, students]) => ({
-          group: key,
-          count: students.length,
-        }))
-      );
+      console.log(`✅ Student groups:`, Object.entries(courseStudents).map(([k, v]) => ({ group: k, count: v.length })));
 
       // --- Fetch enabled rooms from DB, sorted ---
       const rooms = await Room.find({ enabled: true }).sort({ roomNo: 1 });
       if (rooms.length === 0) {
-        return res
-          .status(400)
-          .json({ error: "No enabled rooms found. Please add rooms first." });
+        return res.status(400).json({ error: "No enabled rooms found. Please ask admin to add rooms first." });
       }
 
-      // --- Run seating algorithm with course-grouped data ---
-      // The algorithm uses group keys internally. We map the semester from the key
-      // so that the stored data shows the semester label (e.g., "IV") not the internal key.
+      // --- Run seating algorithm ---
       const groupToSemester = {};
       for (let idx = 0; idx < courses.length; idx++) {
         groupToSemester[`${idx}_${courses[idx].semester}`] = courses[idx].semester;
@@ -895,6 +1180,7 @@ app.post(
       await allocation.save();
 
       res.json({
+
         message: "Allocation successful",
         allocationId: allocation._id,
         courses,

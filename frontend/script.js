@@ -105,37 +105,343 @@ window.addEventListener("DOMContentLoaded", async () => {
       note.style.color = "#f87171";
       note.style.fontWeight = "600";
     }
-    // Clean the URL so the error doesn't persist on refresh
     window.history.replaceState({}, "", "/");
   }
 
   try {
-    const res = await fetch(`${API}/auth/status`, { credentials: "include" });
-    const data = await res.json();
+    // Check faculty (Google) login
+    const [facultyRes, adminRes] = await Promise.all([
+      fetch(`${API}/auth/status`, { credentials: "include" }),
+      fetch(`${API}/auth/admin/status`, { credentials: "include" }),
+    ]);
+    const facultyData = await facultyRes.json();
+    const adminData = await adminRes.json();
 
-    if (data.loggedIn) {
-      // Show app, hide login
-      document.getElementById("login-section").classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-
-      // Fill user info in sidebar
-      document.getElementById("user-name").textContent = data.user.name;
-      document.getElementById("user-email").textContent = data.user.email;
-      if (data.user.photo) {
-        document.getElementById("user-photo").src = data.user.photo;
-      }
-
-      // Load dashboard data
-      loadDashboard();
+    if (adminData.loggedIn) {
+      showAdminApp(adminData.username);
+    } else if (facultyData.loggedIn) {
+      showFacultyApp(facultyData.user);
     } else {
-      // Show login, hide app
       document.getElementById("login-section").classList.remove("hidden");
       document.getElementById("app").classList.add("hidden");
+      document.getElementById("admin-app").classList.add("hidden");
     }
   } catch (err) {
     console.error("Auth check failed:", err);
   }
 });
+
+function showFacultyApp(user) {
+  document.getElementById("login-section").classList.add("hidden");
+  document.getElementById("admin-app").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("user-name").textContent = user.name;
+  document.getElementById("user-email").textContent = user.email;
+  if (user.photo) document.getElementById("user-photo").src = user.photo;
+  loadDashboard();
+}
+
+function showAdminApp(username) {
+  document.getElementById("login-section").classList.add("hidden");
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("admin-app").classList.remove("hidden");
+  document.getElementById("admin-username-display").textContent = username;
+  // Attach admin nav events
+  document.querySelectorAll("[data-admin-page]").forEach((btn) => {
+    btn.addEventListener("click", () => showAdminPage(btn.dataset.adminPage));
+  });
+  showAdminPage("admin-students");
+}
+
+// ============================================================
+// ADMIN LOGIN / LOGOUT
+// ============================================================
+
+function toggleAdminLogin() {
+  const faculty = document.getElementById("faculty-login-panel");
+  const admin = document.getElementById("admin-login-panel");
+  faculty.classList.toggle("hidden");
+  admin.classList.toggle("hidden");
+}
+
+async function adminLogin() {
+  const username = document.getElementById("admin-username").value.trim();
+  const password = document.getElementById("admin-password").value;
+  const errEl = document.getElementById("admin-login-error");
+  errEl.style.display = "none";
+
+  if (!username || !password) {
+    errEl.textContent = "Please enter username and password.";
+    errEl.style.display = "block";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/auth/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.error || "Login failed.";
+      errEl.style.display = "block";
+      return;
+    }
+    showAdminApp(data.username);
+  } catch (err) {
+    errEl.textContent = "Network error. Please try again.";
+    errEl.style.display = "block";
+  }
+}
+
+async function adminLogout() {
+  await fetch(`${API}/auth/admin/logout`, { method: "POST", credentials: "include" });
+  document.getElementById("admin-app").classList.add("hidden");
+  document.getElementById("login-section").classList.remove("hidden");
+  document.getElementById("admin-username").value = "";
+  document.getElementById("admin-password").value = "";
+  // Show faculty panel by default
+  document.getElementById("faculty-login-panel").classList.remove("hidden");
+  document.getElementById("admin-login-panel").classList.add("hidden");
+}
+
+// ============================================================
+// ADMIN NAVIGATION
+// ============================================================
+
+function showAdminPage(pageName) {
+  document.querySelectorAll("#admin-app .page-content").forEach((p) => p.classList.remove("active"));
+  document.querySelectorAll("[data-admin-page]").forEach((b) => b.classList.remove("active"));
+  const pageEl = document.getElementById(`page-${pageName}`);
+  if (pageEl) pageEl.classList.add("active");
+  const navBtn = document.querySelector(`[data-admin-page="${pageName}"]`);
+  if (navBtn) navBtn.classList.add("active");
+
+  if (pageName === "admin-students") loadAdminStudents();
+  if (pageName === "admin-courses") loadAdminCourses();
+  if (pageName === "admin-rooms") loadRooms();
+  if (pageName === "admin-accounts") loadAdminAccounts();
+}
+
+// ============================================================
+// ADMIN — STUDENT DATA
+// ============================================================
+
+document.addEventListener("change", (e) => {
+  if (e.target.id === "student-upload-file") {
+    const nameEl = document.getElementById("student-upload-file-name");
+    if (e.target.files.length > 0) {
+      nameEl.textContent = `📄 ${e.target.files[0].name}`;
+    }
+  }
+});
+
+async function uploadStudentData() {
+  const semester = document.getElementById("student-upload-semester").value;
+  const fileInput = document.getElementById("student-upload-file");
+  const msgEl = document.getElementById("student-upload-msg");
+
+  if (!semester) { msgEl.textContent = "⚠ Please select a semester."; msgEl.style.color = "var(--warning)"; return; }
+  if (!fileInput.files.length) { msgEl.textContent = "⚠ Please select a file."; msgEl.style.color = "var(--warning)"; return; }
+
+  const formData = new FormData();
+  formData.append("semester", semester);
+  formData.append("studentFile", fileInput.files[0]);
+
+  msgEl.textContent = "Uploading...";
+  msgEl.style.color = "var(--text-secondary)";
+
+  try {
+    const res = await fetch(`${API}/api/admin/students/upload`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    msgEl.textContent = `✅ Uploaded ${data.count} students for Semester ${semester}.`;
+    msgEl.style.color = "var(--success)";
+    fileInput.value = "";
+    document.getElementById("student-upload-file-name").textContent = "";
+    loadAdminStudents();
+  } catch (err) {
+    msgEl.textContent = `❌ ${err.message}`;
+    msgEl.style.color = "var(--danger)";
+  }
+}
+
+async function loadAdminStudents() {
+  const tbody = document.getElementById("student-data-tbody");
+  tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">Loading...</td></tr>';
+  try {
+    const res = await fetch(`${API}/api/admin/students`, { credentials: "include" });
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No student data uploaded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data
+      .sort((a, b) => {
+        const order = ["I","II","III","IV","V","VI","VII","VIII"];
+        return order.indexOf(a.semester) - order.indexOf(b.semester);
+      })
+      .map((d) => `
+        <tr>
+          <td><strong>Semester ${d.semester}</strong></td>
+          <td>${d.count} students</td>
+          <td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : "—"}</td>
+          <td>
+            <button class="btn-danger" onclick="deleteStudentData('${d.semester}')">Delete</button>
+          </td>
+        </tr>`).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function deleteStudentData(semester) {
+  if (!confirm(`Delete all student data for Semester ${semester}?`)) return;
+  try {
+    await fetch(`${API}/api/admin/students/${semester}`, { method: "DELETE", credentials: "include" });
+    loadAdminStudents();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+// ============================================================
+// ADMIN — COURSE DATA
+// ============================================================
+
+async function addCourseData() {
+  const semester = document.getElementById("course-add-semester").value;
+  const courseName = document.getElementById("course-add-name").value.trim();
+  const courseCode = document.getElementById("course-add-code").value.trim();
+  const msgEl = document.getElementById("course-add-msg");
+
+  if (!semester || !courseName || !courseCode) {
+    msgEl.textContent = "⚠ All fields are required.";
+    msgEl.style.color = "var(--warning)";
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/admin/courses`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ semester, courseName, courseCode }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    msgEl.textContent = `✅ Course added for Semester ${semester}.`;
+    msgEl.style.color = "var(--success)";
+    document.getElementById("course-add-name").value = "";
+    document.getElementById("course-add-code").value = "";
+    loadAdminCourses();
+  } catch (err) {
+    msgEl.textContent = `❌ ${err.message}`;
+    msgEl.style.color = "var(--danger)";
+  }
+}
+
+async function loadAdminCourses() {
+  const tbody = document.getElementById("course-data-tbody");
+  tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">Loading...</td></tr>';
+  try {
+    const res = await fetch(`${API}/api/admin/courses`, { credentials: "include" });
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No courses added yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map((c) => `
+      <tr>
+        <td>Semester ${c.semester}</td>
+        <td>${c.courseName}</td>
+        <td><span class="usn-code">${c.courseCode}</span></td>
+        <td><button class="btn-danger" onclick="deleteCourseData('${c._id}')">Delete</button></td>
+      </tr>`).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function deleteCourseData(id) {
+  if (!confirm("Delete this course?")) return;
+  try {
+    await fetch(`${API}/api/admin/courses/${id}`, { method: "DELETE", credentials: "include" });
+    loadAdminCourses();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+// ============================================================
+// ADMIN — ACCOUNTS
+// ============================================================
+
+async function loadAdminAccounts() {
+  const tbody = document.getElementById("admin-accounts-tbody");
+  tbody.innerHTML = '<tr><td colspan="3" class="empty-cell">Loading...</td></tr>';
+  try {
+    const res = await fetch(`${API}/auth/admin/list`, { credentials: "include" });
+    const data = await res.json();
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-cell">No admin accounts.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map((a) => `
+      <tr>
+        <td><strong>${a.username}</strong></td>
+        <td>${a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</td>
+        <td><button class="btn-danger" onclick="deleteAdminAccount('${a._id}')">Delete</button></td>
+      </tr>`).join("");
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-cell">Error: ${err.message}</td></tr>`;
+  }
+}
+
+async function createAdminAccount() {
+  const username = document.getElementById("new-admin-username").value.trim();
+  const password = document.getElementById("new-admin-password").value;
+  const msgEl = document.getElementById("admin-create-msg");
+
+  if (!username || !password) { msgEl.textContent = "⚠ Username and password required."; msgEl.style.color = "var(--warning)"; return; }
+
+  try {
+    const res = await fetch(`${API}/auth/admin/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    msgEl.textContent = "✅ Admin account created.";
+    msgEl.style.color = "var(--success)";
+    document.getElementById("new-admin-username").value = "";
+    document.getElementById("new-admin-password").value = "";
+    loadAdminAccounts();
+  } catch (err) {
+    msgEl.textContent = `❌ ${err.message}`;
+    msgEl.style.color = "var(--danger)";
+  }
+}
+
+async function deleteAdminAccount(id) {
+  if (!confirm("Delete this admin account?")) return;
+  try {
+    const res = await fetch(`${API}/auth/admin/${id}`, { method: "DELETE", credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadAdminAccounts();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
 
 // ============================================================
 // NAVIGATION — Switch between pages
@@ -145,17 +451,17 @@ window.addEventListener("DOMContentLoaded", async () => {
 document.querySelectorAll(".nav-item").forEach((btn) => {
   btn.addEventListener("click", () => {
     const page = btn.dataset.page;
-    showPage(page);
+    if (page) showPage(page);
   });
 });
 
 function showPage(pageName) {
   // Hide all pages
-  document.querySelectorAll(".page-content").forEach((p) =>
+  document.querySelectorAll("#app .page-content").forEach((p) =>
     p.classList.remove("active")
   );
   // Deactivate all nav items
-  document.querySelectorAll(".nav-item").forEach((b) =>
+  document.querySelectorAll("#app .nav-item").forEach((b) =>
     b.classList.remove("active")
   );
 
@@ -421,6 +727,44 @@ async function deleteRoom(id) {
 
 let courseEntryCount = 1; // Start with 1 entry already in HTML
 
+// Load courses from DB for a semester dropdown in a course entry
+async function loadCoursesForEntry(semesterSelect) {
+  const entry = semesterSelect.closest(".course-entry");
+  const courseSelect = entry.querySelector(".course-select");
+  const semester = semesterSelect.value;
+
+  courseSelect.innerHTML = '<option value="">Loading...</option>';
+  courseSelect.disabled = true;
+
+  if (!semester) {
+    courseSelect.innerHTML = '<option value="">Select semester first...</option>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/courses/${semester}`, { credentials: "include" });
+    const courses = await res.json();
+
+    if (!courses || courses.length === 0) {
+      courseSelect.innerHTML = '<option value="">No courses found for this semester</option>';
+      return;
+    }
+
+    courseSelect.innerHTML = '<option value="">Select course...</option>' +
+      courses.map((c) => `<option value="${c._id}" data-name="${c.courseName}" data-code="${c.courseCode}">${c.courseName} (${c.courseCode})</option>`).join("");
+    courseSelect.disabled = false;
+
+    // When course is selected, populate hidden fields
+    courseSelect.onchange = () => {
+      const opt = courseSelect.options[courseSelect.selectedIndex];
+      entry.querySelector(".course-name").value = opt.dataset.name || "";
+      entry.querySelector(".course-code").value = opt.dataset.code || "";
+    };
+  } catch (err) {
+    courseSelect.innerHTML = '<option value="">Error loading courses</option>';
+  }
+}
+
 function addCourseEntry() {
   const container = document.getElementById("course-entries");
   const idx = courseEntryCount++;
@@ -435,17 +779,9 @@ function addCourseEntry() {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Course Name</label>
-        <input type="text" class="course-name" placeholder="e.g. DBMS" required />
-      </div>
-      <div class="form-group">
-        <label>Course Code</label>
-        <input type="text" class="course-code" placeholder="e.g. 22CS42" required />
-      </div>
-      <div class="form-group">
         <label>Semester</label>
-        <select class="course-semester" required>
-          <option value="">Select...</option>
+        <select class="course-semester" required onchange="loadCoursesForEntry(this)">
+          <option value="">Select Semester...</option>
           <option value="I">I</option>
           <option value="II">II</option>
           <option value="III">III</option>
@@ -456,13 +792,15 @@ function addCourseEntry() {
           <option value="VIII">VIII</option>
         </select>
       </div>
+      <div class="form-group">
+        <label>Course</label>
+        <select class="course-select" required disabled>
+          <option value="">Select semester first...</option>
+        </select>
+      </div>
     </div>
-    <div class="file-drop-zone course-drop-zone">
-      <div class="drop-icon">📂</div>
-      <p>Upload student file (Excel/CSV)</p>
-      <input type="file" class="course-file" accept=".xlsx,.xls,.csv" required />
-    </div>
-    <div class="course-file-list file-list"></div>
+    <input type="hidden" class="course-name" />
+    <input type="hidden" class="course-code" />
   `;
   container.appendChild(entry);
 }
@@ -471,22 +809,6 @@ function removeCourseEntry(btn) {
   const entry = btn.closest(".course-entry");
   entry.remove();
 }
-
-// Show file name when a course file is selected
-document.addEventListener("change", (e) => {
-  if (e.target.classList.contains("course-file")) {
-    const entry = e.target.closest(".course-entry");
-    const fileList = entry.querySelector(".course-file-list");
-    fileList.innerHTML = "";
-    if (e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const chip = document.createElement("div");
-      chip.className = "file-chip";
-      chip.innerHTML = `📄 ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
-      fileList.appendChild(chip);
-    }
-  }
-});
 
 // ============================================================
 // ALLOCATION SUBMISSION
@@ -508,11 +830,16 @@ async function submitAllocation(event) {
     return;
   }
 
-  // Validate all entries have files
+  // Validate all entries have semester and course selected
   for (const entry of courseEntries) {
-    const fileInput = entry.querySelector(".course-file");
-    if (!fileInput.files.length) {
-      alert("Please upload a student file for each course entry.");
+    const semester = entry.querySelector(".course-semester").value;
+    const courseName = entry.querySelector(".course-name").value;
+    if (!semester) {
+      alert("Please select a semester for each course entry.");
+      return;
+    }
+    if (!courseName) {
+      alert("Please select a course for each entry.");
       return;
     }
   }
@@ -523,13 +850,12 @@ async function submitAllocation(event) {
   document.getElementById("output-section").classList.add("hidden");
 
   try {
-    // Build FormData
+    // Build FormData (no files needed — students come from DB)
     const formData = new FormData();
     formData.append("examName", examName);
     formData.append("date", date);
     formData.append("session", session);
 
-    // If editing, pass the existing allocation ID to replace it
     if (editingAllocationId) {
       formData.append("replaceId", editingAllocationId);
     }
@@ -538,12 +864,10 @@ async function submitAllocation(event) {
       const courseName = entry.querySelector(".course-name").value.trim();
       const courseCode = entry.querySelector(".course-code").value.trim();
       const semester = entry.querySelector(".course-semester").value;
-      const fileInput = entry.querySelector(".course-file");
 
       formData.append(`courses[${idx}][courseName]`, courseName);
       formData.append(`courses[${idx}][courseCode]`, courseCode);
       formData.append(`courses[${idx}][semester]`, semester);
-      formData.append(`course_file_${idx}`, fileInput.files[0]);
     });
 
     const res = await fetch(`${API}/api/allocate`, {
@@ -555,11 +879,9 @@ async function submitAllocation(event) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    // Save allocation ID for PDF downloads
     currentAllocationId = data.allocationId;
-    editingAllocationId = null; // Reset edit mode
+    editingAllocationId = null;
 
-    // Display results
     displayAllocationOutput(data, examName, date, session);
   } catch (err) {
     alert("Allocation failed: " + err.message);

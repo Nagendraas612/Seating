@@ -2143,3 +2143,107 @@ select:focus-visible {
     left: 0;
   }
 }
+
+/* ============================================================
+   ADMIN LOGIN ADDITIONS
+   ============================================================ */
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: rgba(255,255,255,.25);
+  font-size: 12px;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,.12);
+}
+
+.btn-admin-toggle {
+  width: 100%;
+  padding: 11px 22px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(245,158,11,.4);
+  background: rgba(245,158,11,.08);
+  color: #f59e0b;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-admin-toggle:hover {
+  background: rgba(245,158,11,.18);
+  border-color: #f59e0b;
+}
+
+.admin-login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  color: #f59e0b;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.btn-back-faculty {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.45);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.btn-back-faculty:hover { color: #fff; }
+
+/* Admin app sidebar accent */
+#admin-app .brand-sub { color: #f59e0b !important; }
+
+/* btn-add-course */
+.btn-add-course {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--accent);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  margin-top: 8px;
+}
+
+.btn-add-course:hover {
+  background: var(--accent-light);
+}
+
+.btn-danger-solid {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 11px 22px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-danger-solid:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
