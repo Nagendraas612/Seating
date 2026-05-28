@@ -439,9 +439,8 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
 
   const batches = {};
   for (const sem in semesterStudents) {
-    batches[sem] = [...semesterStudents[sem]].sort((a, b) =>
-      a.usn.localeCompare(b.usn)
-    );
+    // Keep original file order — no sorting by USN
+    batches[sem] = [...semesterStudents[sem]];
   }
 
   const semKeys = Object.keys(batches);
