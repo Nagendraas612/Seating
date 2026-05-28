@@ -584,11 +584,15 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
         const middleCol = [];
         const rightCol = [];
 
-        for (let b = 0; b < BENCHES_PER_ROW; b++) {
-          leftCol.push(getNextStudent(colSems[0]));
-          middleCol.push(getNextStudent(colSems[1]));
-          rightCol.push(getNextStudent(colSems[2]));
-        }
+        // Fill each column fully before moving to the next.
+        // This ensures left column = seats 1-6 of the column's batch,
+        // middle = seats 1-6 of the middle batch,
+        // right = seats 7-12 of the column's batch (continuing the queue).
+        // If left and right share the same batch (ABA: left=A, right=A),
+        // filling left first then right gives A1-A6 on left, A7-A12 on right.
+        for (let b = 0; b < BENCHES_PER_ROW; b++) leftCol.push(getNextStudent(colSems[0]));
+        for (let b = 0; b < BENCHES_PER_ROW; b++) middleCol.push(getNextStudent(colSems[1]));
+        for (let b = 0; b < BENCHES_PER_ROW; b++) rightCol.push(getNextStudent(colSems[2]));
 
         for (let b = 0; b < BENCHES_PER_ROW; b++) {
           const benchNum = row * BENCHES_PER_ROW + b + 1;
@@ -610,10 +614,10 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
         const leftCol = [];
         const rightCol = [];
 
-        for (let b = 0; b < BENCHES_PER_ROW; b++) {
-          leftCol.push(getNextStudent(lastSem));
-          rightCol.push(getNextStudent(lastSem));
-        }
+        // Fill left column fully first, then right column,
+        // so bench-1 gets A1 on left and A7 on right (not A1/A2 interleaved).
+        for (let b = 0; b < BENCHES_PER_ROW; b++) leftCol.push(getNextStudent(lastSem));
+        for (let b = 0; b < BENCHES_PER_ROW; b++) rightCol.push(getNextStudent(lastSem));
 
         for (let b = 0; b < BENCHES_PER_ROW; b++) {
           const benchNum = row * BENCHES_PER_ROW + b + 1;
