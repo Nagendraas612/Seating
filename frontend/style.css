@@ -2247,3 +2247,56 @@ select:focus-visible {
   background: #b91c1c;
   transform: translateY(-1px);
 }
+
+/* ============================================================
+   COURSE MODE TOGGLE (DB vs Upload)
+   ============================================================ */
+
+.course-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-main);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.mode-btn.active.mode-db {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mode-btn.active.mode-upload {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.mode-btn:not(.active):hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.elective-tag {
+  background: #f59e0b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 100px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}

@@ -229,30 +229,78 @@
               <h3 class="section-title">② Course Details</h3>
               <div id="course-entries">
                 <!-- First course entry (always present) -->
-                <div class="course-entry" data-index="0">
-                  <div class="form-row">
-                    <div class="form-group">
-                      <label>Semester</label>
-                      <select class="course-semester" required onchange="loadCoursesForEntry(this)">
-                        <option value="">Select Semester...</option>
-                        <option value="I">I</option>
-                        <option value="II">II</option>
-                        <option value="III">III</option>
-                        <option value="IV">IV</option>
-                        <option value="V">V</option>
-                        <option value="VI">VI</option>
-                        <option value="VII">VII</option>
-                        <option value="VIII">VIII</option>
-                      </select>
-                    </div>
-                    <div class="form-group">
-                      <label>Course</label>
-                      <select class="course-select" required disabled>
-                        <option value="">Select semester first...</option>
-                      </select>
+                <div class="course-entry" data-index="0" data-mode="db">
+                  <!-- Mode toggle -->
+                  <div class="course-mode-toggle">
+                    <button type="button" class="mode-btn mode-db active" onclick="setCourseMode(this, 'db')">
+                      📚 From Database
+                    </button>
+                    <button type="button" class="mode-btn mode-upload" onclick="setCourseMode(this, 'upload')">
+                      📂 Upload File <span class="elective-tag">Open Elective</span>
+                    </button>
+                  </div>
+
+                  <!-- DB Mode fields -->
+                  <div class="course-db-fields">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Semester</label>
+                        <select class="course-semester" onchange="loadCoursesForEntry(this)">
+                          <option value="">Select Semester...</option>
+                          <option value="I">I</option>
+                          <option value="II">II</option>
+                          <option value="III">III</option>
+                          <option value="IV">IV</option>
+                          <option value="V">V</option>
+                          <option value="VI">VI</option>
+                          <option value="VII">VII</option>
+                          <option value="VIII">VIII</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Course</label>
+                        <select class="course-select" disabled>
+                          <option value="">Select semester first...</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
-                  <!-- Hidden fields populated from course dropdown selection -->
+
+                  <!-- Upload Mode fields (hidden by default) -->
+                  <div class="course-upload-fields hidden">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Course Name</label>
+                        <input type="text" class="course-name-input" placeholder="e.g. Artificial Intelligence" />
+                      </div>
+                      <div class="form-group">
+                        <label>Course Code</label>
+                        <input type="text" class="course-code-input" placeholder="e.g. 22CS51" />
+                      </div>
+                      <div class="form-group">
+                        <label>Semester</label>
+                        <select class="course-semester-upload">
+                          <option value="">Select...</option>
+                          <option value="I">I</option>
+                          <option value="II">II</option>
+                          <option value="III">III</option>
+                          <option value="IV">IV</option>
+                          <option value="V">V</option>
+                          <option value="VI">VI</option>
+                          <option value="VII">VII</option>
+                          <option value="VIII">VIII</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="file-drop-zone course-drop-zone">
+                      <div class="drop-icon">📂</div>
+                      <p>Upload student file (Excel/CSV) — any branch</p>
+                      <input type="file" class="course-file" accept=".xlsx,.xls,.csv" />
+                    </div>
+                    <div class="course-file-list file-list"></div>
+                  </div>
+
+                  <!-- Hidden fields populated by either mode -->
                   <input type="hidden" class="course-name" />
                   <input type="hidden" class="course-code" />
                 </div>
