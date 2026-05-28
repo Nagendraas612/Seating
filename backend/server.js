@@ -1,11 +1,11 @@
 // ============================================================
 // AIML Internal Examination Seat Allotment System - Backend
 // ============================================================
-// server.js - Main entry point for the backend server
+// server.js - Main entry point
 // Handles: Google OAuth, File Upload, Seating Algorithm, PDFs, MongoDB
 // ============================================================
 
-require("dotenv").config(); // Load .env variables (MONGO_URI, GOOGLE_CLIENT_ID, etc.)
+require("dotenv").config();
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -25,7 +25,6 @@ const helmet = require("helmet");
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust Render's reverse proxy so secure cookies work correctly on HTTPS
 app.set("trust proxy", 1);
 
 // ============================================================
@@ -35,31 +34,25 @@ app.set("trust proxy", 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Security headers (helmet) — sets X-Frame-Options, X-Content-Type-Options,
-// Content-Security-Policy, and more in one line
 app.use(helmet({
-  // Allow inline scripts/styles needed by the frontend
   contentSecurityPolicy: false,
 }));
 
-// Allow frontend (on different port or domain) to call backend
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true, // Required for session cookies
+    credentials: true,
   })
 );
 
-// Serve static frontend files (for production on Render)
 app.use(express.static(path.join(__dirname, "../frontend")));
 
 // ============================================================
 // RATE LIMITING
 // ============================================================
 
-// General API limiter: 100 requests per 15 minutes per IP
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
@@ -67,7 +60,6 @@ const apiLimiter = rateLimit({
 });
 app.use("/api/", apiLimiter);
 
-// Stricter limiter for auth: 20 attempts per 15 minutes per IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
