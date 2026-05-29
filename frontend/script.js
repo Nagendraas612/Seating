@@ -2397,3 +2397,51 @@ function renderReportDownloadButtons(data) {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
+
+// ============================================================
+// PWA — SERVICE WORKER REGISTRATION & INSTALL PROMPT
+// ============================================================
+
+let deferredInstallPrompt = null;
+
+// Register service worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("SW registration failed:", err);
+    });
+  });
+}
+
+// Capture the install prompt before the browser dismisses it
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  showInstallBanner();
+});
+
+// If app is already installed, hide the banner
+window.addEventListener("appinstalled", () => {
+  hideInstallBanner();
+  deferredInstallPrompt = null;
+});
+
+function showInstallBanner() {
+  const banner = document.getElementById("pwa-install-banner");
+  if (banner) banner.classList.remove("hidden");
+}
+
+function hideInstallBanner() {
+  const banner = document.getElementById("pwa-install-banner");
+  if (banner) banner.classList.add("hidden");
+}
+
+async function triggerInstallPrompt() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === "accepted") {
+    deferredInstallPrompt = null;
+    hideInstallBanner();
+  }
+}

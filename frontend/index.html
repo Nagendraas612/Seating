@@ -749,6 +749,23 @@
       </main>
     </div><!-- end #admin-app -->
 
+    <!-- ============================================================ -->
+    <!-- PWA INSTALL BANNER (shown when browser fires beforeinstallprompt) -->
+    <!-- ============================================================ -->
+    <div id="pwa-install-banner" class="pwa-install-banner hidden">
+      <div class="pwa-install-content">
+        <img src="/logo.png" alt="AIML" class="pwa-install-icon" />
+        <div class="pwa-install-text">
+          <strong>Install AIML Seats</strong>
+          <span>Add to home screen for quick access</span>
+        </div>
+      </div>
+      <div class="pwa-install-actions">
+        <button class="pwa-install-btn" onclick="triggerInstallPrompt()">Install</button>
+        <button class="pwa-dismiss-btn" onclick="hideInstallBanner()">✕</button>
+      </div>
+    </div>
+
     <script src="script.js"></script>
   </body>
 </html>
