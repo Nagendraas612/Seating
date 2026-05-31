@@ -1327,15 +1327,59 @@ function setupPdfButtons(allocId) {
 // ============================================================
 
 function openPdfPreview(url, title) {
-  document.getElementById("pdf-preview-title").textContent = title || "PDF Preview";
-  document.getElementById("pdf-preview-iframe").src = url;
-  document.getElementById("pdf-preview-modal").classList.remove("hidden");
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // On mobile, iframes can't render PDFs reliably.
+    // Show a modal with a direct open/download button instead.
+    const modal = document.getElementById("pdf-preview-modal");
+    document.getElementById("pdf-preview-title").textContent = title || "PDF";
+    document.getElementById("pdf-preview-iframe").src = "";
+
+    // Replace iframe with a mobile-friendly download panel
+    const iframe = document.getElementById("pdf-preview-iframe");
+    iframe.style.display = "none";
+
+    let mobilePanel = document.getElementById("pdf-mobile-panel");
+    if (!mobilePanel) {
+      mobilePanel = document.createElement("div");
+      mobilePanel.id = "pdf-mobile-panel";
+      mobilePanel.className = "pdf-mobile-panel";
+      iframe.parentNode.insertBefore(mobilePanel, iframe);
+    }
+    mobilePanel.innerHTML = `
+      <div class="pdf-mobile-icon">📄</div>
+      <p class="pdf-mobile-name">${title || "PDF Document"}</p>
+      <p class="pdf-mobile-hint">Tap below to open or download the PDF</p>
+      <a href="${url}" target="_blank" rel="noopener" class="btn-primary pdf-mobile-open-btn">
+        Open PDF
+      </a>
+      <a href="${url}" download class="btn-outline" style="margin-top:10px;justify-content:center;">
+        ⬇ Download
+      </a>
+    `;
+    mobilePanel.style.display = "flex";
+    modal.classList.remove("hidden");
+  } else {
+    // Desktop: use iframe preview as before
+    const iframe = document.getElementById("pdf-preview-iframe");
+    iframe.style.display = "";
+    const mobilePanel = document.getElementById("pdf-mobile-panel");
+    if (mobilePanel) mobilePanel.style.display = "none";
+
+    document.getElementById("pdf-preview-title").textContent = title || "PDF Preview";
+    iframe.src = url;
+    document.getElementById("pdf-preview-modal").classList.remove("hidden");
+  }
 }
 
 function closePdfPreview(event) {
-  if (event && event.target !== event.currentTarget) return; // Only close on overlay click
+  if (event && event.target !== event.currentTarget) return;
   document.getElementById("pdf-preview-modal").classList.add("hidden");
   document.getElementById("pdf-preview-iframe").src = "";
+  document.getElementById("pdf-preview-iframe").style.display = "";
+  const mobilePanel = document.getElementById("pdf-mobile-panel");
+  if (mobilePanel) mobilePanel.style.display = "none";
 }
 
 // ============================================================
@@ -1363,14 +1407,14 @@ async function loadHistory() {
             ? h.courses.map(c => `${c.courseName} (${c.courseCode})`).join(", ")
             : "";
 
-          // Build per-course absent report buttons
+          // Build per-course absent report buttons — use in-app modal, not new tab
           let absentButtons = "";
           if (h.courses && h.courses.length > 0) {
             absentButtons = h.courses.map((c, idx) =>
-              `<a href="${API}/api/pdf/absent-report/${h._id}/course/${idx}" target="_blank" class="btn-pdf-small">📄 ${c.courseName}</a>`
+              `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}/course/${idx}', '${c.courseName.replace(/'/g,"\\'")} — Absent Report')">📄 ${c.courseName}</button>`
             ).join("");
           } else {
-            absentButtons = `<a href="${API}/api/pdf/absent-report/${h._id}" target="_blank" class="btn-pdf-small">📄 Absentees Report</a>`;
+            absentButtons = `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}', 'Absentees Report')">📄 Absentees Report</button>`;
           }
 
           return `
