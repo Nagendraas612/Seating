@@ -615,17 +615,17 @@ async function loadDashboard() {
     // Restore stat cards
     document.getElementById("stats-grid").innerHTML = `
       <div class="stat-card">
-        <div class="stat-icon">${ICONS.building}</div>
+        <div class="stat-icon">▣</div>
         <div class="stat-value" id="stat-rooms">${rooms.length || 0}</div>
         <div class="stat-label">Total Rooms</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">${ICONS.check}</div>
+        <div class="stat-icon">⬡</div>
         <div class="stat-value" id="stat-enabled">${rooms.filter((r) => r.enabled).length || 0}</div>
         <div class="stat-label">Enabled Rooms</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">${ICONS.clock}</div>
+        <div class="stat-icon">◷</div>
         <div class="stat-value" id="stat-allocs">${history.length || 0}</div>
         <div class="stat-label">Past Allocations</div>
       </div>
@@ -2220,12 +2220,38 @@ async function attSaveAttendance(status) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    await showAlert(data.message, { type: "success", title: "Saved" });
+    // Update the room card badge immediately in the DOM — no reload needed
+    _updateRoomCardBadge(attSelectedRoomNo, status || "draft");
 
     // Navigate back to room list
     attBackToRooms();
+
+    // Show success toast (non-blocking — don't await so navigation happens first)
+    showAlert(data.message, { type: "success", title: "Saved" });
   } catch (err) {
     await showAlert("Error: " + err.message, { type: "error", title: "Error" });
+  }
+}
+
+// Update a single room card's status badge without re-fetching
+function _updateRoomCardBadge(roomNo, status) {
+  // Find the room card by its room name text
+  const cards = document.querySelectorAll("#att-room-grid .att-room-card");
+  for (const card of cards) {
+    const nameEl = card.querySelector(".att-room-name");
+    if (nameEl && nameEl.textContent.trim() === roomNo) {
+      const badgeEl = card.querySelector(".att-status-badge");
+      if (badgeEl) {
+        if (status === "finalized") {
+          badgeEl.className = "att-status-badge finalized";
+          badgeEl.innerHTML = `${ICONS.lock} Finalized`;
+        } else if (status === "saved" || status === "draft") {
+          badgeEl.className = "att-status-badge saved";
+          badgeEl.innerHTML = `${ICONS.check} Saved`;
+        }
+      }
+      break;
+    }
   }
 }
 
