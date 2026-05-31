@@ -447,9 +447,20 @@ select:focus-visible {
 }
 
 .stat-icon {
-  font-size: 22px;
-  margin-bottom: 12px;
+  width: 40px;
+  height: 40px;
+  background: var(--accent-light);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
   color: var(--accent);
+}
+
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .stat-value {
@@ -992,15 +1003,25 @@ select:focus-visible {
 
 .history-card h4 {
   font-family: var(--font-heading);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
 }
 
 .history-card .meta {
   color: var(--text-secondary);
   font-size: 13px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+.history-card .meta svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
 }
 
 .history-card .rooms-count {
@@ -1009,6 +1030,13 @@ select:focus-visible {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.history-card .rooms-count svg {
+  flex-shrink: 0;
 }
 
 .history-pdf-btns {
@@ -2673,4 +2701,242 @@ select:focus-visible {
     border-radius: var(--radius);
   }
   .pdf-iframe { min-height: 300px; }
+}
+
+/* ============================================================
+   PROFESSIONAL POLISH — alignment, spacing, consistency
+   ============================================================ */
+
+/* Stat cards — horizontal layout on desktop for compactness */
+.stat-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Stat icon SVG — ensure proper sizing */
+.stat-icon svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* History card meta — flex row with icon + text */
+.history-card .meta,
+.history-card .rooms-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Ensure SVGs in meta rows don't stretch */
+.history-card .meta svg,
+.history-card .rooms-count svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* History PDF buttons — consistent sizing */
+.btn-pdf-small {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 5px 10px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-pdf-small:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-delete-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 5px 10px;
+  background: var(--danger-light);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-delete-history:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* Attendance room cards grid */
+.att-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.att-room-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.att-room-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.att-room-icon {
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.att-room-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.att-room-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.att-room-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Attendance status badges */
+.att-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 100px;
+  margin-top: 4px;
+}
+
+.att-status-badge.finalized {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.att-status-badge.saved {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.att-status-badge.draft {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+}
+
+.att-status-badge.new {
+  background: var(--bg-main);
+  color: var(--text-muted);
+}
+
+/* Skeleton animation for attendance list */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-table-cell {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 4px;
+  height: 14px;
+}
+
+/* Form card max-width override on mobile */
+@media (max-width: 900px) {
+  .form-card[style*="max-width"] {
+    max-width: 100% !important;
+  }
+
+  /* Stats grid — 3 columns on tablet, 1 on phone */
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Attendance rooms grid — 2 cols on mobile */
+  .att-rooms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* PDF actions wrap nicely */
+  .pdf-actions {
+    gap: 8px;
+  }
+
+  .btn-pdf {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+
+  /* History grid single column */
+  .history-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Attendance action buttons stack on small screens */
+  #att-action-buttons {
+    flex-direction: column;
+  }
+
+  #att-action-buttons button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Stats grid — 1 column on phone */
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Attendance rooms grid — 1 col on tiny phones */
+  .att-rooms-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Compact stat cards on phone */
+  .stat-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+  }
+
+  .stat-icon {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    margin-bottom: 0;
+  }
 }

@@ -615,17 +615,17 @@ async function loadDashboard() {
     // Restore stat cards
     document.getElementById("stats-grid").innerHTML = `
       <div class="stat-card">
-        <div class="stat-icon">▣</div>
+        <div class="stat-icon">${ICONS.building}</div>
         <div class="stat-value" id="stat-rooms">${rooms.length || 0}</div>
         <div class="stat-label">Total Rooms</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">⬡</div>
+        <div class="stat-icon">${ICONS.check}</div>
         <div class="stat-value" id="stat-enabled">${rooms.filter((r) => r.enabled).length || 0}</div>
         <div class="stat-label">Enabled Rooms</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">◷</div>
+        <div class="stat-icon">${ICONS.clock}</div>
         <div class="stat-value" id="stat-allocs">${history.length || 0}</div>
         <div class="stat-label">Past Allocations</div>
       </div>
@@ -2038,9 +2038,25 @@ async function attSelectExam(allocId, examName, date, session) {
 async function attSelectRoom(allocId, roomNo) {
   attSelectedRoomNo = roomNo;
 
+  // Show mark section immediately with skeleton — never flash old data
   document.getElementById("att-room-select").classList.add("hidden");
   document.getElementById("att-mark-section").classList.remove("hidden");
   document.getElementById("att-room-title").textContent = `Room: ${roomNo}`;
+
+  // Clear old data and show skeleton right away
+  const studentListEl = document.getElementById("att-student-list");
+  studentListEl.innerHTML = `
+    <div style="padding:20px;">
+      ${Array(6).fill('').map(() => `
+        <div style="display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);">
+          <div class="skeleton-table-cell" style="width:32px;height:16px;border-radius:4px;flex-shrink:0;"></div>
+          <div class="skeleton-table-cell" style="width:120px;height:16px;border-radius:4px;flex-shrink:0;"></div>
+          <div class="skeleton-table-cell" style="flex:1;height:16px;border-radius:4px;"></div>
+          <div class="skeleton-table-cell" style="width:40px;height:28px;border-radius:6px;flex-shrink:0;"></div>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById("att-action-buttons").classList.add("hidden");
+  document.getElementById("att-finalized-badge").classList.add("hidden");
 
   try {
     const res = await fetch(`${API}/api/history/${allocId}`, { credentials: "include" });
@@ -2049,34 +2065,27 @@ async function attSelectRoom(allocId, roomNo) {
 
     const room = data.attendanceByRoom.find((r) => r.roomNo === roomNo);
     if (!room) {
-      document.getElementById("att-student-list").innerHTML = '<p class="empty-state">Room not found.</p>';
+      studentListEl.innerHTML = '<p class="empty-state">Room not found.</p>';
       return;
     }
 
-    // Check if attendance was already saved
     const savedAttendance = data.attendance || [];
     const savedRoom = savedAttendance.find((a) => a.roomNo === roomNo);
     const roomStatus = savedRoom ? (savedRoom.status || "draft") : "new";
 
-    // Build student list with attendance state
     attStudentData = room.students.map((s) => {
       const saved = savedRoom ? savedRoom.students.find((ss) => ss.usn === s.usn) : null;
-      return {
-        ...s,
-        present: saved ? saved.present : true, // Default: present
-      };
+      return { ...s, present: saved ? saved.present : true };
     });
 
     renderAttendanceMarking();
 
-    // Handle finalized state — disable editing
     const actionBtns = document.getElementById("att-action-buttons");
     const finalizedBadge = document.getElementById("att-finalized-badge");
 
     if (roomStatus === "finalized") {
       actionBtns.classList.add("hidden");
       finalizedBadge.classList.remove("hidden");
-      // Disable all checkboxes
       document.querySelectorAll('#att-student-list input[type="checkbox"]').forEach((cb) => {
         cb.disabled = true;
       });
