@@ -70,6 +70,26 @@ function _showDialog({ icon, title, message, buttons, resolve }) {
   document.getElementById("custom-dialog").classList.remove("hidden");
 }
 
+// ============================================================
+// ICON CONSTANTS — minimalistic SVG line icons (16px, currentColor)
+// ============================================================
+const ICONS = {
+  calendar:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  clock:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  book:      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+  building:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+  database:  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>`,
+  upload:    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>`,
+  file:      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+  trash:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  pen:       `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`,
+  grid:      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+  lock:      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  check:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>`,
+  save:      `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  refresh:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  users:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+};
 
 // ============================================================
 // SKELETON LOADING — Reusable skeleton renderer
@@ -305,7 +325,7 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "student-upload-file") {
     const nameEl = document.getElementById("student-upload-file-name");
     if (e.target.files.length > 0) {
-      nameEl.textContent = `📄 ${e.target.files[0].name}`;
+      nameEl.textContent = `${ICONS.file} ${e.target.files[0].name}`;
     }
   }
 });
@@ -865,10 +885,10 @@ function buildCourseEntryHTML(idx) {
     </div>
     <div class="course-mode-toggle">
       <button type="button" class="mode-btn mode-db active" onclick="setCourseMode(this, 'db')">
-        📚 From Database
+        ${ICONS.database} From Database
       </button>
       <button type="button" class="mode-btn mode-upload" onclick="setCourseMode(this, 'upload')">
-        📂 Upload File <span class="elective-tag">Open Elective</span>
+        ${ICONS.upload} Upload File <span class="elective-tag">Open Elective</span>
       </button>
     </div>
     <div class="course-db-fields">
@@ -921,7 +941,7 @@ function buildCourseEntryHTML(idx) {
         </div>
       </div>
       <div class="file-drop-zone course-drop-zone">
-        <div class="drop-icon">📂</div>
+        <div class="drop-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
         <p>Upload student file (Excel/CSV) — any branch</p>
         <input type="file" class="course-file" accept=".xlsx,.xls,.csv" />
       </div>
@@ -957,7 +977,7 @@ document.addEventListener("change", (e) => {
       const file = e.target.files[0];
       const chip = document.createElement("div");
       chip.className = "file-chip";
-      chip.innerHTML = `📄 ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
+      chip.innerHTML = `${ICONS.file} ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
       fileList.appendChild(chip);
     }
   }
@@ -1063,7 +1083,7 @@ function editCurrentAllocation() {
   document.getElementById("create-form").scrollIntoView({ behavior: "smooth" });
 
   // Update button text to indicate edit mode
-  document.getElementById("allocate-btn").textContent = "🔄 Re-generate Seating Arrangement";
+  document.getElementById("allocate-btn").innerHTML = `${ICONS.refresh} Re-generate Seating Arrangement`;
 }
 
 // ============================================================
@@ -1158,7 +1178,7 @@ const container = document.getElementById("seating-container");
       <div class="room-block">
 
         <div class="room-block-header">
-          🏫 Room ${room.roomNo}
+          ${ICONS.building} Room ${room.roomNo}
         </div>
 
         <div class="room-layout">
@@ -1334,7 +1354,7 @@ function renderAttendance(attendanceByRoom) {
 
       return `
         <div class="room-block" style="margin-bottom:24px;">
-          <div class="room-block-header">✍️ Attendance — Room: ${room.roomNo} (${room.students.length} students)</div>
+          <div class="room-block-header">${ICONS.pen} Attendance — Room: ${room.roomNo} (${room.students.length} students)</div>
           ${semSections}
         </div>`;
     })
@@ -1472,22 +1492,22 @@ async function loadHistory() {
           let absentButtons = "";
           if (h.courses && h.courses.length > 0) {
             absentButtons = h.courses.map((c, idx) =>
-              `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}/course/${idx}', '${c.courseName.replace(/'/g,"\\'")} — Absent Report')">📄 ${c.courseName}</button>`
+              `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}/course/${idx}', '${c.courseName.replace(/'/g,"\\'")} — Absent Report')">${ICONS.file} ${c.courseName}</button>`
             ).join("");
           } else {
-            absentButtons = `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}', 'Absentees Report')">📄 Absentees Report</button>`;
+            absentButtons = `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}', 'Absentees Report')">${ICONS.file} Absentees Report</button>`;
           }
 
           return `
       <div class="history-card">
         <h4>${h.examName}</h4>
-        <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
-        <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
-        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
-        <div class="rooms-count">🏫 ${h.summary.length} room(s) &nbsp;|&nbsp; ${h.summary.reduce((s, r) => s + r.studentCount, 0)} students</div>
+        <div class="meta">${ICONS.calendar} ${h.date} &nbsp;·&nbsp; ${h.session}</div>
+        <div class="meta">${ICONS.clock} ${new Date(h.createdAt).toLocaleString()}</div>
+        ${courseInfo ? `<div class="meta">${ICONS.book} ${courseInfo}</div>` : ""}
+        <div class="rooms-count">${ICONS.building} ${h.summary.length} room(s) &nbsp;|&nbsp; ${h.summary.reduce((s, r) => s + r.studentCount, 0)} students</div>
         <div class="history-pdf-btns">
           ${absentButtons}
-          <button class="btn-delete-history" onclick="deleteAllocation('${h._id}')">🗑 Remove</button>
+          <button class="btn-delete-history" onclick="deleteAllocation('${h._id}')">${ICONS.trash} Remove</button>
         </div>
       </div>`;
         }
@@ -1642,7 +1662,7 @@ function renderAttendanceRooms(data) {
       const sems = [...new Set(room.students.map((s) => s.semester))].sort();
       return `
         <div class="att-room-card" onclick="openAttendanceMarking('${room.roomNo}')">
-          <div class="room-no">🏫 ${room.roomNo}</div>
+          <div class="room-no">${ICONS.building} ${room.roomNo}</div>
           <div class="room-sems">Sem: ${sems.join(", ")}</div>
           <div class="room-count">${room.students.length} students</div>
         </div>`;
@@ -1916,7 +1936,7 @@ async function downloadAbsentPdf() {
     await showAlert("Error generating PDF: " + err.message, { type: "error", title: "Error" });
   } finally {
     btn.disabled = false;
-    btn.textContent = "📄 Download Absent List PDF";
+    btn.innerHTML = `${ICONS.file} Download Absent List PDF`;
   }
 }
 
@@ -1957,10 +1977,10 @@ async function loadAttendancePage() {
           return `
       <div class="history-card" onclick="attSelectExam('${h._id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
-        <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
-        <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
-        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
-        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
+        <div class="meta">${ICONS.calendar} ${h.date} &nbsp;·&nbsp; ${h.session}</div>
+        <div class="meta">${ICONS.clock} ${new Date(h.createdAt).toLocaleString()}</div>
+        ${courseInfo ? `<div class="meta">${ICONS.book} ${courseInfo}</div>` : ""}
+        <div class="rooms-count">${ICONS.building} ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
       </div>`;
         }
       )
@@ -1996,13 +2016,13 @@ async function attSelectExam(allocId, examName, date, session) {
         (room) => {
           const roomAtt = attData.find((a) => a.roomNo === room.roomNo);
           const status = roomAtt ? (roomAtt.status || "draft") : "";
-          const badge = status === "finalized" ? '<span class="att-status-badge finalized">🔒 Finalized</span>'
-            : status === "saved" ? '<span class="att-status-badge saved">✅ Saved</span>'
-            : status === "draft" ? '<span class="att-status-badge draft">💾 Draft</span>'
-            : '<span class="att-status-badge new">○ Not marked</span>';
+          const badge = status === "finalized" ? `<span class="att-status-badge finalized">${ICONS.lock} Finalized</span>`
+            : status === "saved" ? `<span class="att-status-badge saved">${ICONS.check} Saved</span>`
+            : status === "draft" ? `<span class="att-status-badge draft">${ICONS.save} Draft</span>`
+            : '<span class="att-status-badge new">— Not marked</span>';
           return `
       <div class="att-room-card" onclick="attSelectRoom('${allocId}', '${room.roomNo}')">
-        <div class="att-room-icon">🏫</div>
+        <div class="att-room-icon">${ICONS.building}</div>
         <div class="att-room-name">${room.roomNo}</div>
         <div class="att-room-count">${room.students.length} students</div>
         ${badge}
@@ -2251,10 +2271,10 @@ async function loadReportsPage() {
           return `
       <div class="history-card" onclick="rptSelectExam('${h._id}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
-        <div class="meta">📅 ${h.date} &nbsp;·&nbsp; ${h.session}</div>
-        <div class="meta">📁 ${new Date(h.createdAt).toLocaleString()}</div>
-        ${courseInfo ? `<div class="meta">📚 ${courseInfo}</div>` : ""}
-        <div class="rooms-count">🏫 ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
+        <div class="meta">${ICONS.calendar} ${h.date} &nbsp;·&nbsp; ${h.session}</div>
+        <div class="meta">${ICONS.clock} ${new Date(h.createdAt).toLocaleString()}</div>
+        ${courseInfo ? `<div class="meta">${ICONS.book} ${courseInfo}</div>` : ""}
+        <div class="rooms-count">${ICONS.building} ${h.summary ? h.summary.length : 0} room(s) &nbsp;|&nbsp; ${studentCount} students</div>
       </div>`;
         }
       )
@@ -2388,7 +2408,7 @@ function renderCourseWiseReport(data) {
               <span class="rpt-stat present">✓ ${r.present.length} Present</span>
               <span class="rpt-stat absent">✗ ${r.absent.length} Absent</span>
               <span class="rpt-stat total">Total: ${r.total}</span>
-              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${courses.indexOf(r.course)}', '${r.course.courseName} — Absent Report')">📄 PDF</button>
+              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${courses.indexOf(r.course)}', '${r.course.courseName} — Absent Report')">${ICONS.file} PDF</button>
             </div>
           </div>
           ${r.absent.length > 0 ? `
@@ -2448,7 +2468,7 @@ function renderRoomWiseReport(data) {
               <span class="rpt-stat present">✓ ${present.length}</span>
               <span class="rpt-stat absent">✗ ${absent.length}</span>
               <span class="rpt-stat total">Total: ${room.students.length}</span>
-              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/room/${room.roomNo}', 'Room ${room.roomNo} — Absent Report')">📄 PDF</button>
+              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/room/${room.roomNo}', 'Room ${room.roomNo} — Absent Report')">${ICONS.file} PDF</button>
             </div>
           </div>
           ${absent.length > 0 ? absentSections : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All present ✓</p>'}
@@ -2484,12 +2504,12 @@ function renderReportDownloadButtons(data) {
   const container = document.getElementById("rpt-download-buttons");
   const courses = data.courses || [];
 
-  let html = `<button class="btn-primary" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}', 'Complete Absent Report')">📄 Complete Report</button>`;
+  let html = `<button class="btn-primary" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}', 'Complete Absent Report')">${ICONS.file} Complete Report</button>`;
 
   if (courses.length > 0) {
     courses.forEach((course, idx) => {
       const label = `${course.courseName} (Sem ${course.semester})`;
-      html += `<button class="btn-outline" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${idx}', '${label} — Absent Report')">📄 ${label}</button>`;
+      html += `<button class="btn-outline" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${idx}', '${label} — Absent Report')">${ICONS.file} ${label}</button>`;
     });
   }
 
