@@ -1429,14 +1429,17 @@ function openPdfPreview(url, title) {
       iframe.parentNode.insertBefore(mobilePanel, iframe);
     }
     mobilePanel.innerHTML = `
-      <div class="pdf-mobile-icon">📄</div>
+      <div class="pdf-mobile-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
       <p class="pdf-mobile-name">${title || "PDF Document"}</p>
-      <p class="pdf-mobile-hint">Tap below to open or download the PDF</p>
-      <a href="${url}" target="_blank" rel="noopener" class="btn-primary pdf-mobile-open-btn">
+      <p class="pdf-mobile-hint">Tap Open to view — use your browser's back button to return</p>
+      <button class="btn-primary pdf-mobile-open-btn" onclick="closePdfPreview(); window.location.href='${url}';">
         Open PDF
-      </a>
-      <a href="${url}" download class="btn-outline" style="margin-top:10px;justify-content:center;">
-        ⬇ Download
+      </button>
+      <a href="${url}" download class="btn-outline" style="margin-top:10px;justify-content:center;text-decoration:none;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.36"/></svg>
+        Download
       </a>
     `;
     mobilePanel.style.display = "flex";
