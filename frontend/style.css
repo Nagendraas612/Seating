@@ -2566,3 +2566,111 @@ select:focus-visible {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* ============================================================
+   CUSTOM DIALOG (replaces browser alert/confirm)
+   ============================================================ */
+
+.custom-dialog-box {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 28px 24px 24px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  animation: modalScaleIn 0.2s ease;
+}
+
+.custom-dialog-icon {
+  font-size: 36px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.custom-dialog-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.custom-dialog-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 300px;
+}
+
+.custom-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* PDF modal — compact on mobile, no excess height */
+.pdf-modal {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  width: 90vw;
+  max-width: 900px;
+  height: auto;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.pdf-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.pdf-modal-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.pdf-iframe {
+  flex: 1;
+  border: none;
+  min-height: 500px;
+}
+
+/* Mobile PDF panel — compact, no excess whitespace */
+.pdf-mobile-panel {
+  padding: 28px 20px 20px;
+  min-height: unset;
+  gap: 10px;
+}
+
+.pdf-mobile-icon { font-size: 44px; }
+.pdf-mobile-name { font-size: 14px; }
+.pdf-mobile-hint { font-size: 12px; margin-bottom: 4px; }
+
+@media (max-width: 900px) {
+  .pdf-modal {
+    width: 92vw;
+    max-height: 80vh;
+    border-radius: var(--radius);
+  }
+  .pdf-iframe { min-height: 300px; }
+}

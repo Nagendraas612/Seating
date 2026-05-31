@@ -11,6 +11,67 @@ const API = ""; // empty = same origin (works when backend serves frontend)
 let currentAllocationId = null; // ID of latest allocation (for PDF buttons)
 
 // ============================================================
+// CUSTOM DIALOG — replaces browser alert() and confirm()
+// ============================================================
+
+function showAlert(message, options = {}) {
+  return new Promise((resolve) => {
+    const { title = "Notice", icon, type = "info" } = options;
+    const icons = { info: "ℹ️", success: "✅", warning: "⚠️", error: "❌" };
+    _showDialog({
+      icon: icon || icons[type],
+      title,
+      message,
+      buttons: [{ label: "OK", primary: true, value: true }],
+      resolve,
+    });
+  });
+}
+
+function showConfirm(message, options = {}) {
+  return new Promise((resolve) => {
+    const {
+      title = "Confirm",
+      icon = "⚠️",
+      confirmLabel = "Confirm",
+      cancelLabel = "Cancel",
+      danger = false,
+    } = options;
+    _showDialog({
+      icon,
+      title,
+      message,
+      buttons: [
+        { label: cancelLabel, primary: false, value: false },
+        { label: confirmLabel, primary: true, danger, value: true },
+      ],
+      resolve,
+    });
+  });
+}
+
+function _showDialog({ icon, title, message, buttons, resolve }) {
+  document.getElementById("custom-dialog-icon").textContent = icon;
+  document.getElementById("custom-dialog-title").textContent = title;
+  document.getElementById("custom-dialog-message").textContent = message;
+  const actionsEl = document.getElementById("custom-dialog-actions");
+  actionsEl.innerHTML = "";
+  buttons.forEach((btn) => {
+    const el = document.createElement("button");
+    el.textContent = btn.label;
+    el.className = btn.primary ? (btn.danger ? "btn-danger-solid" : "btn-primary") : "btn-outline";
+    el.style.minWidth = "90px";
+    el.onclick = () => {
+      document.getElementById("custom-dialog").classList.add("hidden");
+      resolve(btn.value);
+    };
+    actionsEl.appendChild(el);
+  });
+  document.getElementById("custom-dialog").classList.remove("hidden");
+}
+
+
+// ============================================================
 // SKELETON LOADING — Reusable skeleton renderer
 // ============================================================
 
@@ -313,12 +374,12 @@ async function loadAdminStudents() {
 }
 
 async function deleteStudentData(semester) {
-  if (!confirm(`Delete all student data for Semester ${semester}?`)) return;
+  if (!await showConfirm(`Delete all student data for Semester ${semester}?`, { title: "Delete Student Data", confirmLabel: "Delete", danger: true })) return;
   try {
     await fetch(`${API}/api/admin/students/${semester}`, { method: "DELETE", credentials: "include" });
     loadAdminStudents();
   } catch (err) {
-    alert("Error: " + err.message);
+    await showAlert("Error: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -381,12 +442,12 @@ async function loadAdminCourses() {
 }
 
 async function deleteCourseData(id) {
-  if (!confirm("Delete this course?")) return;
+  if (!await showConfirm("Delete this course?", { title: "Delete Course", confirmLabel: "Delete", danger: true })) return;
   try {
     await fetch(`${API}/api/admin/courses/${id}`, { method: "DELETE", credentials: "include" });
     loadAdminCourses();
   } catch (err) {
-    alert("Error: " + err.message);
+    await showAlert("Error: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -443,14 +504,14 @@ async function createAdminAccount() {
 }
 
 async function deleteAdminAccount(id) {
-  if (!confirm("Delete this admin account?")) return;
+  if (!await showConfirm("Delete this admin account?", { title: "Delete Admin", confirmLabel: "Delete", danger: true })) return;
   try {
     const res = await fetch(`${API}/auth/admin/${id}`, { method: "DELETE", credentials: "include" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     loadAdminAccounts();
   } catch (err) {
-    alert("Error: " + err.message);
+    await showAlert("Error: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -634,7 +695,7 @@ async function addRoom() {
   const benches = document.getElementById("newRoomBenches").value.trim();
 
   if (!roomNo || !benches) {
-    alert("Please enter both Room Number and Number of Benches.");
+    await showAlert("Please enter both Room Number and Number of Benches.", { type: "warning", title: "Missing Fields" });
     return;
   }
 
@@ -656,7 +717,7 @@ async function addRoom() {
     // Refresh table
     loadRooms();
   } catch (err) {
-    alert("Error adding room: " + err.message);
+    await showAlert("Error adding room: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -695,7 +756,7 @@ async function saveRoom() {
     closeModal();
     loadRooms();
   } catch (err) {
-    alert("Error saving room: " + err.message);
+    await showAlert("Error saving room: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -714,13 +775,13 @@ async function toggleRoom(id, currentEnabled, roomNo, benches) {
     });
     loadRooms();
   } catch (err) {
-    alert("Error toggling room: " + err.message);
+    await showAlert("Error toggling room: " + err.message, { type: "error", title: "Error" });
   }
 }
 
 // Delete a room
 async function deleteRoom(id) {
-  if (!confirm("Are you sure you want to delete this room?")) return;
+  if (!await showConfirm("Are you sure you want to delete this room?", { title: "Delete Room", confirmLabel: "Delete", danger: true })) return;
   try {
     await fetch(`${API}/api/rooms/${id}`, {
       method: "DELETE",
@@ -728,7 +789,7 @@ async function deleteRoom(id) {
     });
     loadRooms();
   } catch (err) {
-    alert("Error deleting room: " + err.message);
+    await showAlert("Error deleting room: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -916,7 +977,7 @@ async function submitAllocation(event) {
 
   const courseEntries = document.querySelectorAll(".course-entry");
   if (courseEntries.length === 0) {
-    alert("Please add at least one course entry.");
+    await showAlert("Please add at least one course entry.", { type: "warning", title: "Missing Fields" });
     return;
   }
 
@@ -926,17 +987,17 @@ async function submitAllocation(event) {
     if (mode === "db") {
       const semester = entry.querySelector(".course-semester").value;
       const courseName = entry.querySelector(".course-name").value;
-      if (!semester) { alert("Please select a semester for each course entry."); return; }
-      if (!courseName) { alert("Please select a course from the dropdown for each entry."); return; }
+      if (!semester) { await showAlert("Please select a semester for each course entry.", { type: "warning", title: "Missing Fields" }); return; }
+      if (!courseName) { await showAlert("Please select a course from the dropdown for each entry.", { type: "warning", title: "Missing Fields" }); return; }
     } else {
       // upload mode
       const semester = entry.querySelector(".course-semester-upload").value;
       const courseName = entry.querySelector(".course-name-input").value.trim();
       const courseCode = entry.querySelector(".course-code-input").value.trim();
       const fileInput = entry.querySelector(".course-file");
-      if (!semester) { alert("Please select a semester for the open elective entry."); return; }
-      if (!courseName || !courseCode) { alert("Please enter course name and code for the open elective entry."); return; }
-      if (!fileInput.files.length) { alert("Please upload a student file for the open elective entry."); return; }
+      if (!semester) { await showAlert("Please select a semester for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
+      if (!courseName || !courseCode) { await showAlert("Please enter course name and code for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
+      if (!fileInput.files.length) { await showAlert("Please upload a student file for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
     }
   }
 
@@ -981,7 +1042,7 @@ async function submitAllocation(event) {
     editingAllocationId = null;
     displayAllocationOutput(data, examName, date, session);
   } catch (err) {
-    alert("Allocation failed: " + err.message);
+    await showAlert("Allocation failed: " + err.message, { type: "error", title: "Allocation Failed" });
   } finally {
     document.getElementById("loading").classList.add("hidden");
     document.getElementById("allocate-btn").disabled = false;
@@ -1439,7 +1500,7 @@ async function loadHistory() {
 
 // Delete an allocation from history
 async function deleteAllocation(id) {
-  if (!confirm("Are you sure you want to remove this allocation? This cannot be undone.")) return;
+  if (!await showConfirm("Are you sure you want to remove this allocation? This cannot be undone.", { title: "Remove Allocation", confirmLabel: "Remove", danger: true })) return;
   try {
     const res = await fetch(`${API}/api/history/${id}`, {
       method: "DELETE",
@@ -1449,7 +1510,7 @@ async function deleteAllocation(id) {
     if (!res.ok) throw new Error(data.error);
     loadHistory();
   } catch (err) {
-    alert("Error deleting allocation: " + err.message);
+    await showAlert("Error deleting allocation: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -1478,7 +1539,7 @@ async function viewHistoryAlloc(id) {
       data.session
     );
   } catch (err) {
-    alert("Could not load allocation: " + err.message);
+    await showAlert("Could not load allocation: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -1562,7 +1623,7 @@ async function openAttendanceForExam(examId) {
     // Render room cards
     renderAttendanceRooms(data);
   } catch (err) {
-    alert("Could not load exam: " + err.message);
+    await showAlert("Could not load exam: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -1811,7 +1872,7 @@ async function downloadAbsentPdf() {
   );
 
   if (absentStudents.length === 0) {
-    alert("No absent students to report. All students are marked present.");
+    await showAlert("No absent students to report. All students are marked present.", { type: "info", title: "All Present" });
     return;
   }
 
@@ -1852,7 +1913,7 @@ async function downloadAbsentPdf() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   } catch (err) {
-    alert("Error generating PDF: " + err.message);
+    await showAlert("Error generating PDF: " + err.message, { type: "error", title: "Error" });
   } finally {
     btn.disabled = false;
     btn.textContent = "📄 Download Absent List PDF";
@@ -1950,7 +2011,7 @@ async function attSelectExam(allocId, examName, date, session) {
       )
       .join("");
   } catch (err) {
-    alert("Error loading exam: " + err.message);
+    await showAlert("Error loading exam: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -2004,7 +2065,7 @@ async function attSelectRoom(allocId, roomNo) {
       finalizedBadge.classList.add("hidden");
     }
   } catch (err) {
-    alert("Error loading room: " + err.message);
+    await showAlert("Error loading room: " + err.message, { type: "error", title: "Error" });
   }
 }
 
@@ -2130,17 +2191,17 @@ async function attSaveAttendance(status) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    alert(data.message);
+    await showAlert(data.message, { type: "success", title: "Saved" });
 
     // Navigate back to room list
     attBackToRooms();
   } catch (err) {
-    alert("Error: " + err.message);
+    await showAlert("Error: " + err.message, { type: "error", title: "Error" });
   }
 }
 
-function attFinalizeAttendance() {
-  if (!confirm("Are you sure you want to finalize this room's attendance?\n\nOnce finalized, it CANNOT be changed.")) return;
+async function attFinalizeAttendance() {
+  if (!await showConfirm("Once finalized, it CANNOT be changed.", { title: "Finalize Attendance", icon: "🔒", confirmLabel: "Finalize", danger: true })) return;
   attSaveAttendance("finalized");
 }
 
@@ -2231,7 +2292,7 @@ async function rptSelectExam(allocId) {
     renderReportDownloadButtons(data);
     rptSwitchTab("course");
   } catch (err) {
-    alert("Error loading report: " + err.message);
+    await showAlert("Error loading report: " + err.message, { type: "error", title: "Error" });
   }
 }
 
