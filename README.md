@@ -17,21 +17,6 @@
 
 </div>
 
-## � Screenshots
-
-<div align="center">
-
-### 🔐 Secure Login
-<img src="https://via.placeholder.com/800x400/0d1117/58a6ff?text=Dual+Authentication:+Google+OAuth+%2B+Admin+Login" alt="Login Screen" width="700"/>
-
-### 📊 Dashboard
-<img src="https://via.placeholder.com/800x400/f4f5f7/2563eb?text=Real-time+Statistics+%26+Recent+Allocations" alt="Dashboard" width="700"/>
-
-### 🪑 Smart Seating Layout
-<img src="https://via.placeholder.com/800x400/ffffff/d97706?text=Anti-Copy+Seating+Pattern+%28ABA+%2F+BAB%29" alt="Seating Layout" width="700"/>
-
-</div>
-
 
 ---
 
