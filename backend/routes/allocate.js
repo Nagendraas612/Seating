@@ -1,9 +1,8 @@
 // Refactored module (pure move from server.js): POST /api/allocate
 
 const express = require("express");
-const xlsx = require("xlsx");
-const Allocation = require("../models/Allocation");
 const { pool } = require("../config/postgres");
+const { deleteAllocation } = require("../utils/allocationLoader");
 const upload = require("../middleware/upload");
 const { isLoggedIn } = require("../middleware/auth");
 const { allocateSeats, buildSummary, buildAttendance } = require("../services/seating");
@@ -12,7 +11,9 @@ const router = express.Router();
 // ============================================================
 // MAIN ALLOCATION ROUTE
 // POST /api/allocate
-// Students fetched from the Postgres student table. Legacy file upload still supported.
+// Students come from the Postgres student table only. The legacy per-course
+// file upload was removed in stage 4 (faculty decision 2026-11-22) — it can
+// return later as a designed feature, not a fallback.
 // ============================================================
 
 router.post(
@@ -80,9 +81,8 @@ router.post(
         courses[i].examName = courses[i].examName.trim();
       }
 
-      // --- Build student groups from DB (with legacy file fallback) ---
+      // --- Build student groups from the DB ---
       const courseStudents = {};
-      const hasFiles = req.files && req.files.length > 0;
 
       for (let idx = 0; idx < courses.length; idx++) {
         const course = courses[idx];
@@ -98,30 +98,6 @@ router.post(
         if (rows.length > 0) {
           courseStudents[groupKey] = rows.map((r) => ({ name: r.name, usn: r.usn, section: r.section }));
           console.log(`📚 Loaded ${courseStudents[groupKey].length} students for Sem ${semester} from DB`);
-        } else if (hasFiles) {
-          const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);
-          if (!file) {
-            return res.status(400).json({
-              error: `No student data in DB for Semester ${semester} and no file uploaded for entry ${idx + 1}.`,
-            });
-          }
-          try {
-            const workbook = xlsx.read(file.buffer, { type: "buffer" });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = xlsx.utils.sheet_to_json(sheet);
-            const students = rows
-              .map((row) => ({
-                name: (row["Name"] || row["name"] || row["NAME"] || "").toString().trim(),
-                usn:  (row["USN"]  || row["usn"]  || row["Usn"]  || "").toString().trim(),
-              }))
-              .filter((s) => s.name && s.usn);
-            if (students.length === 0) {
-              return res.status(400).json({ error: `No valid students in file for ${course.courseName || semester}.` });
-            }
-            courseStudents[groupKey] = students;
-          } catch (fileErr) {
-            return res.status(400).json({ error: `Failed to parse file: ${fileErr.message}` });
-          }
         } else {
           return res.status(400).json({
             error: `No student data found for Semester ${semester}. Please ask admin to upload student data first.`,
@@ -157,33 +133,102 @@ router.post(
       const summary = buildSummary(roomResults);
       const attendanceByRoom = buildAttendance(roomResults);
 
-      // --- If editing, delete the old allocation ---
-      const replaceId = req.body.replaceId;
-      if (replaceId) {
-        try {
-          await Allocation.findByIdAndDelete(replaceId);
-          console.log(`🔄 Replaced old allocation: ${replaceId}`);
-        } catch (delErr) {
-          console.warn("Could not delete old allocation:", delErr.message);
+      // --- Save to Postgres, all in one transaction ---
+      // Exam row + course mappings + one seating row per occupied seat.
+      // Summary and attendance lists are NOT stored — they are derived
+      // from the seating rows when read. The exam is Published at once,
+      // keeping today's behaviour (no Draft/Published review step yet).
+      const client = await pool.connect();
+      let examId;
+      try {
+        await client.query("BEGIN");
+
+        // Re-generate replaces the old allocation (children first: the
+        // tables have no ON DELETE CASCADE). A bad id is ignored, like before.
+        const replaceId = req.body.replaceId;
+        if (replaceId) {
+          if (await deleteAllocation(replaceId, client)) {
+            console.log(`🔄 Replaced old allocation: ${replaceId}`);
+          } else {
+            console.warn("Could not delete old allocation:", replaceId);
+          }
         }
+
+        const { rows: [exam] } = await client.query(
+          `INSERT INTO exam (exam_name, exam_date, session, exam_status)
+           VALUES ($1, $2, $3, 'Published') RETURNING exam_id`,
+          [examName, date, session]
+        );
+        examId = exam.exam_id;
+
+        // Mappings only for codes that exist in the course table — a typed
+        // code with no course row cannot be linked, so it is skipped
+        // (the in-memory course list below still carries it for display).
+        const { rows: existing } = await client.query(
+          "SELECT course_id FROM course WHERE course_id = ANY($1)",
+          [courses.map((c) => c.courseCode)]
+        );
+        const existingCodes = new Set(existing.map((r) => r.course_id));
+        for (const c of courses) {
+          if (!existingCodes.has(c.courseCode)) {
+            console.warn(`Course code not in course table, mapping skipped: ${c.courseCode}`);
+            continue;
+          }
+          await client.query(
+            `INSERT INTO exam_course_mapping (exam_id, course_id, semester, exam_name)
+             VALUES ($1, $2, $3, $4) ON CONFLICT (exam_id, course_id) DO NOTHING`,
+            [examId, c.courseCode, c.semester, c.examName]
+          );
+        }
+
+        // Group label per semester, from the course entry order: first
+        // entry A, second B, third C. (Two entries sharing a semester
+        // share a label — the label is a per-run record, not a key.)
+        const groupLabelBySemester = {};
+        courses.forEach((c, i) => {
+          if (!(c.semester in groupLabelBySemester)) groupLabelBySemester[c.semester] = "ABC"[i] || null;
+        });
+
+        // One batched INSERT for all occupied seats (empty seats are not
+        // stored — a missing seat position reads as empty).
+        const seatValues = [];
+        const seatParams = [];
+        let p = 1;
+        for (const room of roomResults) {
+          for (const bench of room.seating) {
+            for (const pos of ["left", "middle", "right"]) {
+              const s = bench[pos];
+              if (!s || !s.usn) continue;
+              seatValues.push(`($${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++})`);
+              seatParams.push(
+                examId,
+                room.roomNo,
+                bench.bench,
+                pos[0].toUpperCase() + pos.slice(1),
+                s.usn,
+                groupLabelBySemester[s.semester] || null
+              );
+            }
+          }
+        }
+        if (seatValues.length > 0) {
+          await client.query(
+            `INSERT INTO seating_allocation (exam_id, room_number, bench_number, seat_position, student_usn, group_label) VALUES ${seatValues.join(", ")}`,
+            seatParams
+          );
+        }
+
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
       }
 
-      // --- Save to MongoDB ---
-      const allocation = new Allocation({
-        examName,
-        date,
-        session,
-        courses,
-        rooms: roomResults,
-        summary,
-        attendanceByRoom,
-      });
-      await allocation.save();
-
       res.json({
-
         message: "Allocation successful",
-        allocationId: allocation._id,
+        allocationId: examId,
         courses,
         summary,
         rooms: roomResults,

@@ -2,7 +2,7 @@
 
 const express = require("express");
 const PDFDocument = require("pdfkit");
-const Allocation = require("../models/Allocation");
+const { loadAllocation } = require("../utils/allocationLoader");
 const { isLoggedIn } = require("../middleware/auth");
 const { writePDFHeader, writeCollegeHeader, renderClassroom, buildNoticeData } = require("../utils/pdf");
 const router = express.Router();
@@ -10,7 +10,7 @@ const router = express.Router();
 // --- PDF: Absent Report ---
 router.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) {
       return res.status(404).json({ error: "Allocation not found" });
     }
@@ -186,7 +186,7 @@ router.get("/api/pdf/absent-report/:id", isLoggedIn, async (req, res) => {
 // --- PDF: Absent Report per Course ---
 router.get("/api/pdf/absent-report/:id/course/:courseIdx", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) return res.status(404).json({ error: "Allocation not found" });
     if (!alloc.attendance || alloc.attendance.length === 0)
       return res.status(400).json({ error: "No attendance data saved." });
@@ -292,7 +292,7 @@ router.get("/api/pdf/absent-report/:id/course/:courseIdx", isLoggedIn, async (re
 // --- PDF: Absent Report per Room ---
 router.get("/api/pdf/absent-report/:id/room/:roomNo", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) return res.status(404).json({ error: "Allocation not found" });
     if (!alloc.attendance || alloc.attendance.length === 0)
       return res.status(400).json({ error: "No attendance data saved." });
@@ -390,7 +390,7 @@ router.get("/api/pdf/absent-report/:id/room/:roomNo", isLoggedIn, async (req, re
 // --- PDF: Notice Board Sheet ---
 router.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) {
       return res.status(404).json({ error: "Allocation not found" });
     }
@@ -578,7 +578,7 @@ router.get("/api/pdf/notice/:id", isLoggedIn, async (req, res) => {
 // --- PDF: Detailed Seating Layout (Classroom Template) ---
 router.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) {
       return res.status(404).json({ error: "Allocation not found" });
     }
@@ -648,7 +648,7 @@ router.get("/api/pdf/seating/:id", isLoggedIn, async (req, res) => {
 // --- PDF: Attendance Sheet ---
 router.get("/api/pdf/attendance/:id", isLoggedIn, async (req, res) => {
   try {
-    const alloc = await Allocation.findById(req.params.id);
+    const alloc = await loadAllocation(req.params.id);
     if (!alloc) {
       return res.status(404).json({ error: "Allocation not found" });
     }

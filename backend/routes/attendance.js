@@ -2,7 +2,8 @@
 
 const express = require("express");
 const PDFDocument = require("pdfkit");
-const Allocation = require("../models/Allocation");
+const { pool } = require("../config/postgres");
+const { isUUID } = require("../utils/allocationLoader");
 const { isLoggedIn } = require("../middleware/auth");
 const { writeCollegeHeader, semesterToYear, semesterToOrder, yearLabel } = require("../utils/pdf");
 const router = express.Router();
@@ -21,41 +22,60 @@ router.post("/api/attendance/save", isLoggedIn, async (req, res) => {
     }
 
     const validStatus = ["draft", "saved", "finalized"].includes(status) ? status : "draft";
+    // PG stores 'Draft'/'Saved'/'Finalized'; the API speaks lowercase.
+    const pgStatus = validStatus[0].toUpperCase() + validStatus.slice(1);
 
-    const allocation = await Allocation.findById(allocationId);
-    if (!allocation) {
+    if (!isUUID(allocationId)) {
+      return res.status(404).json({ error: "Allocation not found." });
+    }
+    const { rows: exams } = await pool.query(
+      "SELECT 1 FROM exam WHERE exam_id = $1",
+      [allocationId]
+    );
+    if (exams.length === 0) {
       return res.status(404).json({ error: "Allocation not found." });
     }
 
-    // Find or create attendance entry for this room
-    if (!allocation.attendance) allocation.attendance = [];
-
-    const existingIdx = allocation.attendance.findIndex((a) => a.roomNo === roomNo);
-
     // Block changes to finalized attendance
-    if (existingIdx >= 0 && allocation.attendance[existingIdx].status === "finalized") {
+    const { rows: finalRows } = await pool.query(
+      `SELECT 1 FROM attendance
+       WHERE exam_id = $1 AND room_number = $2 AND record_status = 'Finalized' LIMIT 1`,
+      [allocationId, roomNo]
+    );
+    if (finalRows.length > 0) {
       return res.status(403).json({ error: "This room's attendance has been finalized and cannot be changed." });
     }
 
-    const attendanceEntry = {
-      roomNo,
-      status: validStatus,
-      savedAt: new Date(),
-      students: students.map((s) => ({
-        usn: s.usn || "",
-        name: s.name || "",
-        semester: s.semester || "",
-        present: s.present !== false,
-      })),
-    };
-
-    if (existingIdx >= 0) {
-      allocation.attendance[existingIdx] = attendanceEntry;
-    } else {
-      allocation.attendance.push(attendanceEntry);
+    // Replace this room's marks in one transaction: delete the old rows,
+    // insert the new set. (Names/semesters are not stored here — they
+    // come from the student table when the marks are read.)
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        "DELETE FROM attendance WHERE exam_id = $1 AND room_number = $2",
+        [allocationId, roomNo]
+      );
+      for (const s of students) {
+        if (!s.usn) continue;
+        await client.query(
+          `INSERT INTO attendance (exam_id, room_number, student_usn, attendance_status, record_status, marked_at)
+           VALUES ($1, $2, $3, $4, $5, NOW())
+           ON CONFLICT (exam_id, student_usn) DO UPDATE SET
+             room_number = EXCLUDED.room_number,
+             attendance_status = EXCLUDED.attendance_status,
+             record_status = EXCLUDED.record_status,
+             marked_at = NOW()`,
+          [allocationId, roomNo, s.usn, s.present !== false ? "Present" : "Absent", pgStatus]
+        );
+      }
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
     }
-
-    await allocation.save();
 
     const messages = {
       draft: "Attendance saved as draft.",

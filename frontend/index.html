@@ -229,78 +229,31 @@
               <h3 class="section-title">② Course Details</h3>
               <div id="course-entries">
                 <!-- First course entry (always present) -->
-                <div class="course-entry" data-index="0" data-mode="db">
-                  <!-- Mode toggle -->
-                  <div class="course-mode-toggle">
-                    <button type="button" class="mode-btn mode-db active" onclick="setCourseMode(this, 'db')">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> From Database
-                    </button>
-                    <button type="button" class="mode-btn mode-upload" onclick="setCourseMode(this, 'upload')">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;flex-shrink:0;"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Upload File <span class="elective-tag">Open Elective</span>
-                    </button>
-                  </div>
-
-                  <!-- DB Mode fields -->
-                  <div class="course-db-fields">
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Semester</label>
-                        <select class="course-semester" onchange="loadCoursesForEntry(this)">
-                          <option value="">Select Semester...</option>
-                          <option value="I">I</option>
-                          <option value="II">II</option>
-                          <option value="III">III</option>
-                          <option value="IV">IV</option>
-                          <option value="V">V</option>
-                          <option value="VI">VI</option>
-                          <option value="VII">VII</option>
-                          <option value="VIII">VIII</option>
-                        </select>
-                      </div>
-                      <div class="form-group">
-                        <label>Course</label>
-                        <select class="course-select" disabled>
-                          <option value="">Select semester first...</option>
-                        </select>
-                      </div>
+                <div class="course-entry" data-index="0">
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Semester</label>
+                      <select class="course-semester" onchange="loadCoursesForEntry(this)">
+                        <option value="">Select Semester...</option>
+                        <option value="I">I</option>
+                        <option value="II">II</option>
+                        <option value="III">III</option>
+                        <option value="IV">IV</option>
+                        <option value="V">V</option>
+                        <option value="VI">VI</option>
+                        <option value="VII">VII</option>
+                        <option value="VIII">VIII</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Course</label>
+                      <select class="course-select" disabled>
+                        <option value="">Select semester first...</option>
+                      </select>
                     </div>
                   </div>
 
-                  <!-- Upload Mode fields (hidden by default) -->
-                  <div class="course-upload-fields hidden">
-                    <div class="form-row">
-                      <div class="form-group">
-                        <label>Course Name</label>
-                        <input type="text" class="course-name-input" placeholder="e.g. Artificial Intelligence" />
-                      </div>
-                      <div class="form-group">
-                        <label>Course Code</label>
-                        <input type="text" class="course-code-input" placeholder="e.g. 22CS51" />
-                      </div>
-                      <div class="form-group">
-                        <label>Semester</label>
-                        <select class="course-semester-upload">
-                          <option value="">Select...</option>
-                          <option value="I">I</option>
-                          <option value="II">II</option>
-                          <option value="III">III</option>
-                          <option value="IV">IV</option>
-                          <option value="V">V</option>
-                          <option value="VI">VI</option>
-                          <option value="VII">VII</option>
-                          <option value="VIII">VIII</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="file-drop-zone course-drop-zone">
-                      <div class="drop-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
-                      <p>Upload student file (Excel/CSV) — any branch</p>
-                      <input type="file" class="course-file" accept=".xlsx,.xls,.csv" />
-                    </div>
-                    <div class="course-file-list file-list"></div>
-                  </div>
-
-                  <!-- Hidden fields populated by either mode -->
+                  <!-- Hidden fields populated by the course dropdown -->
                   <input type="hidden" class="course-name" />
                   <input type="hidden" class="course-code" />
                 </div>
@@ -508,13 +461,6 @@
         </div>
 
       </main>
-
-      <!-- Credits Marquee -->
-      <div class="credits-marquee">
-        <div class="credits-track">
-          <span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span><span>P.G Ayush Rai</span><span>·</span><span>Nagasiri Mourya</span><span>·</span><span>Nagaveni H.S</span><span>·</span><span>Nagendra A.S</span><span>·</span><span>Thejus N Parihar</span><span>·</span>
-        </div>
-      </div>
 
     </div><!-- end #app -->
 

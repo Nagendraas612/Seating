@@ -63,7 +63,6 @@ require("./config/database");
 // ============================================================
 
 // Room is gone — rooms live in Postgres now (Stage 2).
-require("./models/Allocation");
 require("./models/AdminUser");
 // CourseData is gone — courses live in Postgres now (Stage 1).
 

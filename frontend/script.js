@@ -759,7 +759,7 @@ async function loadDashboard() {
       .slice(0, 2)
       .map(
         (h) => `
-      <div class="recent-item" onclick="viewHistoryAlloc('${h._id}')">
+      <div class="recent-item" onclick="viewHistoryAlloc('${h.exam_id}')">
         <div>
           <div class="recent-item-name">${h.examName}</div>
           <div class="recent-item-meta">${h.date} · ${h.session}</div>
@@ -932,31 +932,13 @@ async function deleteRoom(id) {
 }
 
 // ============================================================
-// FILE UPLOAD HANDLING & COURSE ENTRIES
+// COURSE ENTRIES
 // ============================================================
+// Course entries take students from the database only. The per-entry
+// file upload (open elective) was removed in stage 4 — it can return
+// later as a designed feature, not a fallback.
 
 let courseEntryCount = 1;
-
-// Switch a course entry between DB mode and Upload mode
-function setCourseMode(btn, mode) {
-  const entry = btn.closest(".course-entry");
-  const dbFields = entry.querySelector(".course-db-fields");
-  const uploadFields = entry.querySelector(".course-upload-fields");
-  const allModeBtns = entry.querySelectorAll(".mode-btn");
-
-  allModeBtns.forEach((b) => b.classList.remove("active"));
-  btn.classList.add("active");
-
-  if (mode === "db") {
-    dbFields.classList.remove("hidden");
-    uploadFields.classList.add("hidden");
-    entry.dataset.mode = "db";
-  } else {
-    dbFields.classList.add("hidden");
-    uploadFields.classList.remove("hidden");
-    entry.dataset.mode = "upload";
-  }
-}
 
 // Load courses from DB for a semester dropdown in a course entry
 async function loadCoursesForEntry(semesterSelect) {
@@ -1001,14 +983,6 @@ function buildCourseEntryHTML(idx) {
       <span>Course ${idx + 1}</span>
       <button type="button" class="btn-remove-course" onclick="removeCourseEntry(this)">✕</button>
     </div>
-    <div class="course-mode-toggle">
-      <button type="button" class="mode-btn mode-db active" onclick="setCourseMode(this, 'db')">
-        ${ICONS.database} From Database
-      </button>
-      <button type="button" class="mode-btn mode-upload" onclick="setCourseMode(this, 'upload')">
-        ${ICONS.upload} Upload File <span class="elective-tag">Open Elective</span>
-      </button>
-    </div>
     <!-- Exam name for this entry (added entries only; entry 1 uses the top-level Exam Name) -->
     <div class="form-row">
       <div class="form-group">
@@ -1016,61 +990,27 @@ function buildCourseEntryHTML(idx) {
         <input type="text" class="course-exam-name" placeholder="e.g. CIE-III" />
       </div>
     </div>
-    <div class="course-db-fields">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Semester</label>
-          <select class="course-semester" onchange="loadCoursesForEntry(this)">
-            <option value="">Select Semester...</option>
-            <option value="I">I</option>
-            <option value="II">II</option>
-            <option value="III">III</option>
-            <option value="IV">IV</option>
-            <option value="V">V</option>
-            <option value="VI">VI</option>
-            <option value="VII">VII</option>
-            <option value="VIII">VIII</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Course</label>
-          <select class="course-select" disabled>
-            <option value="">Select semester first...</option>
-          </select>
-        </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Semester</label>
+        <select class="course-semester" onchange="loadCoursesForEntry(this)">
+          <option value="">Select Semester...</option>
+          <option value="I">I</option>
+          <option value="II">II</option>
+          <option value="III">III</option>
+          <option value="IV">IV</option>
+          <option value="V">V</option>
+          <option value="VI">VI</option>
+          <option value="VII">VII</option>
+          <option value="VIII">VIII</option>
+        </select>
       </div>
-    </div>
-    <div class="course-upload-fields hidden">
-      <div class="form-row">
-        <div class="form-group">
-          <label>Course Name</label>
-          <input type="text" class="course-name-input" placeholder="e.g. Artificial Intelligence" />
-        </div>
-        <div class="form-group">
-          <label>Course Code</label>
-          <input type="text" class="course-code-input" placeholder="e.g. 22CS51" />
-        </div>
-        <div class="form-group">
-          <label>Semester</label>
-          <select class="course-semester-upload">
-            <option value="">Select...</option>
-            <option value="I">I</option>
-            <option value="II">II</option>
-            <option value="III">III</option>
-            <option value="IV">IV</option>
-            <option value="V">V</option>
-            <option value="VI">VI</option>
-            <option value="VII">VII</option>
-            <option value="VIII">VIII</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label>Course</label>
+        <select class="course-select" disabled>
+          <option value="">Select semester first...</option>
+        </select>
       </div>
-      <div class="file-drop-zone course-drop-zone">
-        <div class="drop-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg></div>
-        <p>Upload student file (Excel/CSV) — any branch</p>
-        <input type="file" class="course-file" accept=".xlsx,.xls,.csv" />
-      </div>
-      <div class="course-file-list file-list"></div>
     </div>
     <input type="hidden" class="course-name" />
     <input type="hidden" class="course-code" />
@@ -1083,7 +1023,6 @@ function addCourseEntry() {
   const entry = document.createElement("div");
   entry.className = "course-entry";
   entry.dataset.index = idx;
-  entry.dataset.mode = "db";
   entry.innerHTML = buildCourseEntryHTML(idx);
   container.appendChild(entry);
 }
@@ -1091,22 +1030,6 @@ function addCourseEntry() {
 function removeCourseEntry(btn) {
   btn.closest(".course-entry").remove();
 }
-
-// Show file name when a course file is selected
-document.addEventListener("change", (e) => {
-  if (e.target.classList.contains("course-file")) {
-    const entry = e.target.closest(".course-entry");
-    const fileList = entry.querySelector(".course-file-list");
-    fileList.innerHTML = "";
-    if (e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const chip = document.createElement("div");
-      chip.className = "file-chip";
-      chip.innerHTML = `${ICONS.file} ${file.name} <span>${(file.size / 1024).toFixed(1)} KB</span>`;
-      fileList.appendChild(chip);
-    }
-  }
-});
 
 // ============================================================
 // ALLOCATION SUBMISSION
@@ -1126,30 +1049,18 @@ async function submitAllocation(event) {
     return;
   }
 
-  // Validate each entry based on its mode
+  // Validate each entry (students come from the database only)
   for (const entry of courseEntries) {
-    const mode = entry.dataset.mode || "db";
     // Added entries carry their own exam name; entry 1 uses the top-level Exam Name
     const examNameInput = entry.querySelector(".course-exam-name");
     if (examNameInput && !examNameInput.value.trim()) {
       await showAlert("Please enter an exam name for each added course entry.", { type: "warning", title: "Missing Fields" });
       return;
     }
-    if (mode === "db") {
-      const semester = entry.querySelector(".course-semester").value;
-      const courseName = entry.querySelector(".course-name").value;
-      if (!semester) { await showAlert("Please select a semester for each course entry.", { type: "warning", title: "Missing Fields" }); return; }
-      if (!courseName) { await showAlert("Please select a course from the dropdown for each entry.", { type: "warning", title: "Missing Fields" }); return; }
-    } else {
-      // upload mode
-      const semester = entry.querySelector(".course-semester-upload").value;
-      const courseName = entry.querySelector(".course-name-input").value.trim();
-      const courseCode = entry.querySelector(".course-code-input").value.trim();
-      const fileInput = entry.querySelector(".course-file");
-      if (!semester) { await showAlert("Please select a semester for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
-      if (!courseName || !courseCode) { await showAlert("Please enter course name and code for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
-      if (!fileInput.files.length) { await showAlert("Please upload a student file for the open elective entry.", { type: "warning", title: "Missing Fields" }); return; }
-    }
+    const semester = entry.querySelector(".course-semester").value;
+    const courseName = entry.querySelector(".course-name").value;
+    if (!semester) { await showAlert("Please select a semester for each course entry.", { type: "warning", title: "Missing Fields" }); return; }
+    if (!courseName) { await showAlert("Please select a course from the dropdown for each entry.", { type: "warning", title: "Missing Fields" }); return; }
   }
 
   document.getElementById("loading").classList.remove("hidden");
@@ -1165,24 +1076,15 @@ async function submitAllocation(event) {
     if (editingAllocationId) formData.append("replaceId", editingAllocationId);
 
     courseEntries.forEach((entry, idx) => {
-      const mode = entry.dataset.mode || "db";
-
       // Per-course exam name: entry 1 uses the top-level Exam Name, added entries use their own field
       const examNameInput = entry.querySelector(".course-exam-name");
       const courseExamName = examNameInput ? examNameInput.value.trim() : examName;
       formData.append(`courses[${idx}][examName]`, courseExamName);
 
-      if (mode === "db") {
-        formData.append(`courses[${idx}][courseName]`, entry.querySelector(".course-name").value.trim());
-        formData.append(`courses[${idx}][courseCode]`, entry.querySelector(".course-code").value.trim());
-        formData.append(`courses[${idx}][semester]`, entry.querySelector(".course-semester").value);
-        // No file — backend will fetch from DB
-      } else {
-        formData.append(`courses[${idx}][courseName]`, entry.querySelector(".course-name-input").value.trim());
-        formData.append(`courses[${idx}][courseCode]`, entry.querySelector(".course-code-input").value.trim());
-        formData.append(`courses[${idx}][semester]`, entry.querySelector(".course-semester-upload").value);
-        formData.append(`course_file_${idx}`, entry.querySelector(".course-file").files[0]);
-      }
+      formData.append(`courses[${idx}][courseName]`, entry.querySelector(".course-name").value.trim());
+      formData.append(`courses[${idx}][courseCode]`, entry.querySelector(".course-code").value.trim());
+      formData.append(`courses[${idx}][semester]`, entry.querySelector(".course-semester").value);
+      // Students come from the database — no file is sent.
     });
 
     const res = await fetch(`${API}/api/allocate`, {
@@ -1631,10 +1533,10 @@ async function loadHistory() {
           let absentButtons = "";
           if (h.courses && h.courses.length > 0) {
             absentButtons = h.courses.map((c, idx) =>
-              `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}/course/${idx}', '${c.courseName.replace(/'/g,"\\'")} — Absent Report')">${ICONS.file} ${c.courseName}</button>`
+              `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h.exam_id}/course/${idx}', '${c.courseName.replace(/'/g,"\\'")} — Absent Report')">${ICONS.file} ${c.courseName}</button>`
             ).join("");
           } else {
-            absentButtons = `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h._id}', 'Absentees Report')">${ICONS.file} Absentees Report</button>`;
+            absentButtons = `<button class="btn-pdf-small" onclick="openPdfPreview('${API}/api/pdf/absent-report/${h.exam_id}', 'Absentees Report')">${ICONS.file} Absentees Report</button>`;
           }
 
           return `
@@ -1646,7 +1548,7 @@ async function loadHistory() {
         <div class="rooms-count">${ICONS.building} ${h.summary.length} room(s) &nbsp;|&nbsp; ${h.summary.reduce((s, r) => s + r.studentCount, 0)} students</div>
         <div class="history-pdf-btns">
           ${absentButtons}
-          <button class="btn-delete-history" onclick="deleteAllocation('${h._id}')">${ICONS.trash} Remove</button>
+          <button class="btn-delete-history" onclick="deleteAllocation('${h.exam_id}')">${ICONS.trash} Remove</button>
         </div>
       </div>`;
         }
@@ -1707,7 +1609,7 @@ async function viewHistoryAlloc(id) {
 // ============================================================
 
 // State for attendance marking
-let currentAttendanceExam = null;   // { _id, examName, date, session, attendanceByRoom, courses }
+let currentAttendanceExam = null;   // { exam_id, examName, date, session, attendanceByRoom, courses }
 let currentAttendanceRoom = null;   // { roomNo, students: [...] }
 let attendanceState = {};           // { usn: true/false } — true = present, false = absent
 
@@ -1744,7 +1646,7 @@ async function loadAttendanceExamList() {
     listEl.innerHTML = history
       .map(
         (h) => `
-        <button class="nav-sub-item" onclick="openAttendanceForExam('${h._id}')">
+        <button class="nav-sub-item" onclick="openAttendanceForExam('${h.exam_id}')">
           ${h.examName}<br/>
           <span style="font-size:11px;opacity:.6;">${h.date} · ${h.session}</span>
         </button>`
@@ -2114,7 +2016,7 @@ async function loadAttendancePage() {
             : "";
           const studentCount = h.summary ? h.summary.reduce((s, r) => s + r.studentCount, 0) : 0;
           return `
-      <div class="history-card" onclick="attSelectExam('${h._id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
+      <div class="history-card" onclick="attSelectExam('${h.exam_id}', '${h.examName}', '${h.date}', '${h.session}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
         <div class="meta">${ICONS.calendar} ${h.date} &nbsp;·&nbsp; ${h.session}</div>
         <div class="meta">${ICONS.clock} ${new Date(h.createdAt).toLocaleString()}</div>
@@ -2443,7 +2345,7 @@ async function loadReportsPage() {
             : "";
           const studentCount = h.summary ? h.summary.reduce((s, r) => s + r.studentCount, 0) : 0;
           return `
-      <div class="history-card" onclick="rptSelectExam('${h._id}')" style="cursor:pointer;">
+      <div class="history-card" onclick="rptSelectExam('${h.exam_id}')" style="cursor:pointer;">
         <h4>${h.examName}</h4>
         <div class="meta">${ICONS.calendar} ${h.date} &nbsp;·&nbsp; ${h.session}</div>
         <div class="meta">${ICONS.clock} ${new Date(h.createdAt).toLocaleString()}</div>

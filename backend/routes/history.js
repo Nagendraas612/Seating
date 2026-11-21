@@ -1,7 +1,7 @@
 // Refactored module (pure move from server.js): allocation history routes
 
 const express = require("express");
-const Allocation = require("../models/Allocation");
+const { loadAllocation, loadAllocationSummaries, deleteAllocation } = require("../utils/allocationLoader");
 const { isLoggedIn } = require("../middleware/auth");
 const router = express.Router();
 
@@ -12,11 +12,7 @@ const router = express.Router();
 // GET all past allocations (list view)
 router.get("/api/history", isLoggedIn, async (req, res) => {
   try {
-    const list = await Allocation.find(
-      {},
-      { examName: 1, date: 1, session: 1, createdAt: 1, summary: 1, courses: 1 }
-    ).sort({ createdAt: -1 });
-    res.json(list);
+    res.json(await loadAllocationSummaries());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -25,7 +21,7 @@ router.get("/api/history", isLoggedIn, async (req, res) => {
 // DELETE an allocation
 router.delete("/api/history/:id", isLoggedIn, async (req, res) => {
   try {
-    await Allocation.findByIdAndDelete(req.params.id);
+    await deleteAllocation(req.params.id);
     res.json({ message: "Allocation deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -35,7 +31,7 @@ router.delete("/api/history/:id", isLoggedIn, async (req, res) => {
 // GET a specific allocation by ID (full detail)
 router.get("/api/history/:id", isLoggedIn, async (req, res) => {
   try {
-    const allocation = await Allocation.findById(req.params.id);
+    const allocation = await loadAllocation(req.params.id);
     if (!allocation) return res.status(404).json({ error: "Not found" });
     res.json(allocation);
   } catch (err) {
