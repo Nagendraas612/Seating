@@ -439,27 +439,90 @@ async function addCourseData() {
   }
 }
 
+// All courses loaded from the server, plus the multi-delete selection.
+// The semester filter only hides rows — it never re-fetches.
+let adminCourses = [];
+const selectedCourses = new Set();
+
 async function loadAdminCourses() {
   const tbody = document.getElementById("course-data-tbody");
-  tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Loading...</td></tr>';
   try {
     const res = await fetch(`${API}/api/admin/courses`, { credentials: "include" });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Could not load courses.");
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No courses added yet.</td></tr>';
-      return;
+    adminCourses = Array.isArray(data) ? data : [];
+    // Drop selections for courses that no longer exist.
+    const ids = new Set(adminCourses.map((c) => c.course_id));
+    for (const id of [...selectedCourses]) {
+      if (!ids.has(id)) selectedCourses.delete(id);
     }
-    tbody.innerHTML = data.map((c) => `
+    renderAdminCourses();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function filteredAdminCourses() {
+  const sem = document.getElementById("course-filter-semester").value;
+  if (!sem) return adminCourses;
+  return adminCourses.filter((c) => c.semester === sem);
+}
+
+function renderAdminCourses() {
+  const tbody = document.getElementById("course-data-tbody");
+  const courses = filteredAdminCourses();
+  if (courses.length === 0) {
+    const msg = adminCourses.length === 0
+      ? "No courses added yet."
+      : "No courses for this semester.";
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">${msg}</td></tr>`;
+  } else {
+    tbody.innerHTML = courses.map((c) => `
       <tr>
+        <td><input type="checkbox" class="course-checkbox" ${selectedCourses.has(c.course_id) ? "checked" : ""} onchange="toggleCourseSelection('${c.course_id}', this.checked)" /></td>
         <td>Semester ${c.semester}</td>
         <td>${c.courseName}</td>
         <td><span class="usn-code">${c.courseCode}</span></td>
         <td><button class="btn-danger" onclick="deleteCourseData('${c.course_id}')">Delete</button></td>
       </tr>`).join("");
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Error: ${err.message}</td></tr>`;
   }
+  updateCourseSelectionUI();
+}
+
+function toggleCourseSelection(courseId, checked) {
+  if (checked) selectedCourses.add(courseId);
+  else selectedCourses.delete(courseId);
+  updateCourseSelectionUI();
+}
+
+function toggleSelectAllCourses(checked) {
+  filteredAdminCourses().forEach((c) => {
+    if (checked) selectedCourses.add(c.course_id);
+    else selectedCourses.delete(c.course_id);
+  });
+  renderAdminCourses();
+}
+
+function updateCourseSelectionUI() {
+  const count = selectedCourses.size;
+  const btn = document.getElementById("delete-selected-courses");
+  btn.style.display = count > 0 ? "" : "none";
+  btn.textContent = `Delete selected (${count})`;
+  const headerCb = document.getElementById("select-all-courses");
+  const visible = filteredAdminCourses();
+  headerCb.checked = visible.length > 0 && visible.every((c) => selectedCourses.has(c.course_id));
+}
+
+async function deleteSelectedCourses() {
+  const ids = [...selectedCourses];
+  if (ids.length === 0) return;
+  if (!await showConfirm(`Delete ${ids.length} course${ids.length === 1 ? "" : "s"}?`, { title: "Delete Courses", confirmLabel: "Delete", danger: true })) return;
+  for (const id of ids) {
+    await fetch(`${API}/api/admin/courses/${encodeURIComponent(id)}`, { method: "DELETE", credentials: "include" });
+  }
+  selectedCourses.clear();
+  loadAdminCourses();
 }
 
 async function deleteCourseData(id) {
