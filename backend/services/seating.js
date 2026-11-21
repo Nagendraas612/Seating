@@ -1,47 +1,8 @@
 // Refactored module (pure move from server.js): seating algorithm + summary/attendance builders
 
-// ============================================================
-// HELPER FUNCTIONS
-// ============================================================
-
-/**
- * Extract batch year from USN format: 4VV24CI001 → "24"
- * USN Format: [digit][2 letters][2 digits - BATCH YEAR][2 letters - BRANCH][3 digits]
- * Examples:
- *   4VV24CI001 → batch "24" (2024 admission)
- *   4VV23CS001 → batch "23" (2023 admission)
- *   4TV24CS001 → batch "24" (2024 admission)
- */
-function extractBatchFromUSN(usn) {
-  if (!usn || typeof usn !== "string") return null;
-  const match = usn.match(/^\d[A-Z]{2}(\d{2})[A-Z]{2}\d{3}$/);
-  return match ? match[1] : null;
-}
-
-/**
- * Parse student list and group by batch year (extracted from USN)
- * @param {Array} students - Array of { name, usn }
- * @returns {Object} - { "24": [students], "23": [students], ... }
- */
-function groupStudentsByBatch(students) {
-  const batchMap = {};
-  
-  for (const student of students) {
-    const batch = extractBatchFromUSN(student.usn);
-    
-    if (!batch) {
-      console.warn(`Invalid USN format or batch not found: ${student.usn}`);
-      continue;
-    }
-    
-    if (!batchMap[batch]) {
-      batchMap[batch] = [];
-    }
-    batchMap[batch].push(student);
-  }
-  
-  return batchMap;
-}
+// NOTE (stage 5): the old extractBatchFromUSN / groupStudentsByBatch helpers
+// were deleted — nothing called them, and grouping by USN digits contradicts
+// the rule that semester/batch/section come from stored columns, never USN.
 
 // ============================================================
 // SEATING ALGORITHM
@@ -78,6 +39,10 @@ function groupStudentsByBatch(students) {
  *
  * 6. Exhaustion: if a slot's batch runs out, that seat is empty (null).
  *    No undefined values are ever stored.
+ * 7. Overflow (stage 5): students left without a seat once the rooms run
+ *    out are RETURNED as `unseated` (per group, with details) — never
+ *    silently dropped. The caller reports them; the allocation still saves.
+ *    Return shape: { rooms, unseated, unseatedTotal }.
  */
 
 function allocateSeats(semesterStudents, rooms, groupToSemester) {
@@ -295,7 +260,18 @@ function allocateSeats(semesterStudents, rooms, groupToSemester) {
     finalRooms.push(roomResult);
   }
 
-  return finalRooms;
+  // Overflow (stage 5): any students still in the queues once the rooms
+  // run out. Returned per group with the students' details so the caller
+  // can report exactly who has no seat.
+  const unseated = semKeys
+    .filter((sem) => remaining(sem) > 0)
+    .map((sem) => ({
+      semester: (groupToSemester && groupToSemester[sem]) || sem,
+      students: batches[sem].slice(queues[sem]),
+    }));
+  const unseatedTotal = unseated.reduce((s, g) => s + g.students.length, 0);
+
+  return { rooms: finalRooms, unseated, unseatedTotal };
 }
 
 
@@ -373,8 +349,6 @@ function buildAttendance(roomResults) {
 }
 
 module.exports = {
-  extractBatchFromUSN,
-  groupStudentsByBatch,
   allocateSeats,
   buildSummary,
   buildAttendance,

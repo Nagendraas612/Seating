@@ -71,6 +71,17 @@ router.post(
         return res.status(400).json({ error: "At least one course entry is required." });
       }
 
+      // Seating supports at most 3 semesters at a time (faculty decision
+      // 2026-11-22: 4 semesters never run together). The cap is on DISTINCT
+      // semesters — two course entries in one semester are a single group.
+      // Refused here, before any student is loaded or anything is saved.
+      const distinctSemesters = [...new Set(courses.map((c) => c.semester))];
+      if (distinctSemesters.length > 3) {
+        return res.status(400).json({
+          error: `Seating supports up to 3 semesters at a time. You selected ${distinctSemesters.length} (${distinctSemesters.join(", ")}).`,
+        });
+      }
+
       // Each course entry must carry its own exam name (entry 1 copies the top-level Exam Name)
       for (let i = 0; i < courses.length; i++) {
         if (!courses[i].examName || !courses[i].examName.trim()) {
@@ -127,7 +138,14 @@ router.post(
       for (let idx = 0; idx < courses.length; idx++) {
         groupToSemester[`${idx}_${courses[idx].semester}`] = courses[idx].semester;
       }
-      const roomResults = allocateSeats(courseStudents, rooms, groupToSemester);
+      const { rooms: roomResults, unseated, unseatedTotal } = allocateSeats(courseStudents, rooms, groupToSemester);
+
+      // Overflow (stage 5): students who did not fit the rooms are reported,
+      // never silently dropped. The allocation still saves (warn, don't block).
+      if (unseatedTotal > 0) {
+        console.warn(`⚠ Overflow: ${unseatedTotal} student(s) could not be seated:`,
+          unseated.map((g) => `Sem ${g.semester}: ${g.students.length}`).join(", "));
+      }
 
       // --- Build summary and attendance ---
       const summary = buildSummary(roomResults);
@@ -233,6 +251,8 @@ router.post(
         summary,
         rooms: roomResults,
         attendanceByRoom,
+        unseated,
+        unseatedTotal,
       });
     } catch (err) {
       console.error("Allocation error:", err);

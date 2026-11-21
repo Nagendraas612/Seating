@@ -2942,3 +2942,27 @@ select:focus-visible {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   ALLOCATION OUTPUT — OVERFLOW WARNING BANNER (stage 5)
+   ============================================================ */
+
+.unseated-banner {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.unseated-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.unseated-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 8px;
+}

@@ -1135,6 +1135,9 @@ function displayAllocationOutput(data, examName, date, session) {
   document.getElementById("output-exam-label").textContent =
     `${examName} · ${date} · ${session}`;
 
+  // Overflow warning (stage 5): students who did not fit the rooms.
+  renderUnseatedBanner(data.unseated, data.unseatedTotal);
+
   // Set PDF download URLs
   setupPdfButtons(currentAllocationId);
 
@@ -1148,6 +1151,33 @@ function displayAllocationOutput(data, examName, date, session) {
 
   // Scroll to output
   section.scrollIntoView({ behavior: "smooth" });
+}
+
+// ---- Overflow warning (stage 5) ----
+// Shows the students who could not be seated: the count, the per-group
+// breakdown and their USNs. Hidden when everyone got a seat (and for
+// older allocations, which carry no unseated data).
+function renderUnseatedBanner(unseated, unseatedTotal) {
+  const container = document.getElementById("unseated-banner");
+  if (!container) return;
+  if (!unseatedTotal || unseatedTotal === 0) {
+    container.innerHTML = "";
+    container.classList.add("hidden");
+    return;
+  }
+  const groups = (unseated || [])
+    .map((g) => {
+      const usns = g.students.map((s) => s.usn).join(", ");
+      return `<div><strong>Sem ${g.semester} &mdash; ${g.students.length} unseated:</strong> <span class="usn-code">${usns}</span></div>`;
+    })
+    .join("");
+  container.innerHTML = `
+    <div class="unseated-banner">
+      <div class="unseated-title">Warning &mdash; ${unseatedTotal} student${unseatedTotal === 1 ? "" : "s"} could not be seated, the rooms ran out.</div>
+      ${groups}
+      <div class="unseated-hint">Add more rooms (or enable more) and re-generate to seat them.</div>
+    </div>`;
+  container.classList.remove("hidden");
 }
 
 // ---- Notice Board Tab ----
@@ -1445,7 +1475,61 @@ function setupPdfButtons(allocId) {
 // PDF PREVIEW MODAL
 // ============================================================
 
-function openPdfPreview(url, title) {
+// Friendly wording for PDF errors, so a failed PDF shows a proper
+// statement instead of raw JSON. The no-attendance case is the one
+// faculty hit most: the report buttons exist before attendance is marked.
+function pdfErrorDetails(serverMessage) {
+  if (!serverMessage) {
+    return { title: "Couldn't open PDF", message: "Couldn't open this PDF. Please try again.", type: "error" };
+  }
+  if (/No attendance data saved/.test(serverMessage)) {
+    return { title: "Attendance not marked", message: "No attendance has been marked for this exam yet. Mark the attendance first, then open the report.", type: "warning" };
+  }
+  if (/Allocation not found/.test(serverMessage)) {
+    return { title: "Couldn't open PDF", message: "This seating arrangement no longer exists. It may have been deleted or replaced.", type: "error" };
+  }
+  return { title: "Couldn't open PDF", message: serverMessage, type: "error" };
+}
+
+// Blob URL of the PDF currently shown in the preview modal. The previous
+// one is released when the next PDF opens — never on close, because the
+// mobile Open button navigates to the URL straight after closing.
+let currentPdfBlobUrl = null;
+
+async function openPdfPreview(url, title) {
+  // Fetch the PDF first: if the server answers with an error (e.g. no
+  // attendance marked yet), show a proper message and never open the
+  // modal on raw JSON. Every PDF in the app opens through here, so this
+  // one check covers all six PDF routes (notice, seating, attendance,
+  // and the three absent-report variants).
+  let res;
+  try {
+    res = await fetch(url, { credentials: "include" });
+  } catch (err) {
+    await showAlert("Couldn't reach the server. Check your connection and try again.", { type: "error", title: "Couldn't open PDF" });
+    return;
+  }
+  if (!res.ok) {
+    let serverMessage = "";
+    try {
+      const body = await res.json();
+      serverMessage = body && body.error ? body.error : "";
+    } catch (e) { /* empty or non-JSON error body */ }
+    const details = pdfErrorDetails(serverMessage);
+    await showAlert(details.message, { type: details.type, title: details.title });
+    return;
+  }
+
+  const blob = await res.blob();
+  if (currentPdfBlobUrl) URL.revokeObjectURL(currentPdfBlobUrl);
+  currentPdfBlobUrl = URL.createObjectURL(blob);
+  const pdfUrl = currentPdfBlobUrl;
+  // Keep the server's filename for the mobile download link.
+  let fileName = `${title || "document"}.pdf`;
+  const disposition = res.headers.get("content-disposition") || "";
+  const fileMatch = disposition.match(/filename="?([^";]+)"?/);
+  if (fileMatch) fileName = fileMatch[1];
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   if (isMobile) {
@@ -1472,10 +1556,10 @@ function openPdfPreview(url, title) {
       </div>
       <p class="pdf-mobile-name">${title || "PDF Document"}</p>
       <p class="pdf-mobile-hint">Tap Open to view — use your browser's back button to return</p>
-      <button class="btn-primary pdf-mobile-open-btn" onclick="closePdfPreview(); window.location.href='${url}';">
+      <button class="btn-primary pdf-mobile-open-btn" onclick="closePdfPreview(); window.location.href='${pdfUrl}';">
         Open PDF
       </button>
-      <a href="${url}" download class="btn-outline" style="margin-top:10px;justify-content:center;text-decoration:none;">
+      <a href="${pdfUrl}" download="${fileName}" class="btn-outline" style="margin-top:10px;justify-content:center;text-decoration:none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-2px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.36"/></svg>
         Download
       </a>
@@ -1490,7 +1574,7 @@ function openPdfPreview(url, title) {
     if (mobilePanel) mobilePanel.style.display = "none";
 
     document.getElementById("pdf-preview-title").textContent = title || "PDF Preview";
-    iframe.src = url;
+    iframe.src = pdfUrl;
     document.getElementById("pdf-preview-modal").classList.remove("hidden");
   }
 }
