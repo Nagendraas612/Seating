@@ -445,6 +445,7 @@ async function loadAdminCourses() {
   try {
     const res = await fetch(`${API}/api/admin/courses`, { credentials: "include" });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Could not load courses.");
     if (!data || data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No courses added yet.</td></tr>';
       return;
@@ -454,7 +455,7 @@ async function loadAdminCourses() {
         <td>Semester ${c.semester}</td>
         <td>${c.courseName}</td>
         <td><span class="usn-code">${c.courseCode}</span></td>
-        <td><button class="btn-danger" onclick="deleteCourseData('${c._id}')">Delete</button></td>
+        <td><button class="btn-danger" onclick="deleteCourseData('${c.course_id}')">Delete</button></td>
       </tr>`).join("");
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Error: ${err.message}</td></tr>`;
@@ -864,7 +865,7 @@ async function loadCoursesForEntry(semesterSelect) {
     }
 
     courseSelect.innerHTML = '<option value="">Select course...</option>' +
-      courses.map((c) => `<option value="${c._id}" data-name="${c.courseName}" data-code="${c.courseCode}">${c.courseName} (${c.courseCode})</option>`).join("");
+      courses.map((c) => `<option value="${c.course_id}" data-name="${c.courseName}" data-code="${c.courseCode}">${c.courseName} (${c.courseCode})</option>`).join("");
     courseSelect.disabled = false;
 
     courseSelect.onchange = () => {

@@ -66,7 +66,7 @@ require("./models/Room");
 require("./models/Allocation");
 require("./models/AdminUser");
 require("./models/StudentData");
-require("./models/CourseData");
+// CourseData is gone — courses live in Postgres now (Stage 1).
 
 // ============================================================
 // SESSION SETUP (uses MongoDB to persist sessions)

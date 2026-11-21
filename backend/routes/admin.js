@@ -4,7 +4,7 @@ const express = require("express");
 const xlsx = require("xlsx");
 const Room = require("../models/Room");
 const StudentData = require("../models/StudentData");
-const CourseData = require("../models/CourseData");
+const { pool } = require("../config/postgres");
 const upload = require("../middleware/upload");
 const { isAdminLoggedIn } = require("../middleware/auth");
 const router = express.Router();
@@ -154,14 +154,29 @@ router.delete("/api/admin/students/:semester", isAdminLoggedIn, async (req, res)
 // COURSE DATA ROUTES (Admin only for write, Faculty for read)
 // ============================================================
 
+// --- Course rows are mapped to the API shape the frontend uses ---
+// Postgres columns are snake_case; the API answers stay camelCase.
+// The course code IS the key now (course_id) — there is no Mongo _id.
+function toCourseApi(row) {
+  return {
+    course_id: row.course_id,
+    semester: row.semester,
+    courseName: row.course_name,
+    courseCode: row.course_id,
+  };
+}
+
 // GET courses for a semester (faculty + admin)
 router.get("/api/courses/:semester", async (req, res) => {
   if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
     return res.status(401).json({ error: "Unauthorized." });
   }
   try {
-    const courses = await CourseData.find({ semester: req.params.semester }).sort({ courseName: 1 });
-    res.json(courses);
+    const { rows } = await pool.query(
+      "SELECT course_id, course_name, semester FROM course WHERE semester = $1 ORDER BY course_name",
+      [req.params.semester]
+    );
+    res.json(rows.map(toCourseApi));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -170,8 +185,10 @@ router.get("/api/courses/:semester", async (req, res) => {
 // GET all courses grouped by semester (admin overview)
 router.get("/api/admin/courses", isAdminLoggedIn, async (req, res) => {
   try {
-    const courses = await CourseData.find().sort({ semester: 1, courseName: 1 });
-    res.json(courses);
+    const { rows } = await pool.query(
+      "SELECT course_id, course_name, semester FROM course ORDER BY semester, course_name"
+    );
+    res.json(rows.map(toCourseApi));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -184,33 +201,43 @@ router.post("/api/admin/courses", isAdminLoggedIn, async (req, res) => {
     if (!semester || !courseName || !courseCode) {
       return res.status(400).json({ error: "semester, courseName, and courseCode are required." });
     }
-    const course = new CourseData({ semester, courseName: courseName.trim(), courseCode: courseCode.trim() });
-    await course.save();
-    res.json({ success: true, course });
+    const { rows } = await pool.query(
+      "INSERT INTO course (course_id, course_name, semester) VALUES ($1, $2, $3) RETURNING course_id, course_name, semester",
+      [courseCode.trim(), courseName.trim(), semester]
+    );
+    res.json({ success: true, course: toCourseApi(rows[0]) });
   } catch (err) {
+    if (err.code === "23505") {
+      return res.status(400).json({ error: "A course with this code already exists." });
+    }
     res.status(400).json({ error: err.message });
   }
 });
 
-// PUT update a course (admin)
+// PUT update a course (admin) — :id is the course code, which can itself change.
 router.put("/api/admin/courses/:id", isAdminLoggedIn, async (req, res) => {
   try {
     const { semester, courseName, courseCode } = req.body;
-    const course = await CourseData.findByIdAndUpdate(
-      req.params.id,
-      { semester, courseName: courseName.trim(), courseCode: courseCode.trim() },
-      { new: true }
+    const { rows } = await pool.query(
+      "UPDATE course SET course_id = $1, course_name = $2, semester = $3 WHERE course_id = $4 RETURNING course_id, course_name, semester",
+      [courseCode.trim(), courseName.trim(), semester, req.params.id]
     );
-    res.json({ success: true, course });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Course not found." });
+    }
+    res.json({ success: true, course: toCourseApi(rows[0]) });
   } catch (err) {
+    if (err.code === "23505") {
+      return res.status(400).json({ error: "A course with this code already exists." });
+    }
     res.status(400).json({ error: err.message });
   }
 });
 
-// DELETE a course (admin)
+// DELETE a course (admin) — :id is the course code.
 router.delete("/api/admin/courses/:id", isAdminLoggedIn, async (req, res) => {
   try {
-    await CourseData.findByIdAndDelete(req.params.id);
+    await pool.query("DELETE FROM course WHERE course_id = $1", [req.params.id]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
