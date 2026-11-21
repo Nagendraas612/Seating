@@ -1,9 +1,8 @@
 // Refactored module (pure move from server.js): admin routes (rooms, students, courses)
 
 const express = require("express");
-const xlsx = require("xlsx");
-const StudentData = require("../models/StudentData");
 const { pool } = require("../config/postgres");
+const { parseStudentWorkbook } = require("../utils/studentUpload");
 const upload = require("../middleware/upload");
 const { isAdminLoggedIn } = require("../middleware/auth");
 const router = express.Router();
@@ -112,42 +111,83 @@ router.post(
       if (!semester) return res.status(400).json({ error: "Semester is required." });
       if (!req.file) return res.status(400).json({ error: "Student file is required." });
 
-      const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = xlsx.utils.sheet_to_json(sheet);
-
-      const students = rows
-        .map((row) => ({
-          name: (row["Name"] || row["name"] || row["NAME"] || "").toString().trim(),
-          usn:  (row["USN"]  || row["usn"]  || row["Usn"]  || "").toString().trim(),
-        }))
-        .filter((s) => s.name && s.usn);
+      let parsed;
+      try {
+        parsed = parseStudentWorkbook(req.file.buffer);
+      } catch (err) {
+        return res.status(400).json({ error: "Could not read that file: " + err.message });
+      }
+      const { students, skipped } = parsed;
 
       if (students.length === 0) {
-        return res.status(400).json({ error: "No valid students found. Ensure columns are 'Name' and 'USN'." });
+        return res.status(400).json({ error: "No valid students found. The sheet needs USN, Name and Email columns (Section and Batch are recommended)." });
       }
 
-      // Upsert: replace existing data for this semester
-      await StudentData.findOneAndUpdate(
-        { semester },
-        { semester, students, uploadedAt: new Date() },
-        { upsert: true, new: true }
-      );
+      // Replace this semester's students in ONE transaction: if anything
+      // fails halfway, the old list stays untouched. A USN that already
+      // lives in another semester moves here — one student, one semester.
+      const client = await pool.connect();
+      let moved = 0;
+      try {
+        await client.query("BEGIN");
+        // Students in this file who currently sit in ANOTHER semester will
+        // move here — count them so the admin sees the move instead of a
+        // semester silently vanishing from the overview.
+        const movedRes = await client.query(
+          "SELECT COUNT(*)::int AS moved FROM student WHERE usn = ANY($1) AND semester <> $2",
+          [students.map((s) => s.usn), semester]
+        );
+        moved = movedRes.rows[0].moved;
+        await client.query("DELETE FROM student WHERE semester = $1", [semester]);
+        for (const s of students) {
+          await client.query(
+            `INSERT INTO student (usn, name, batch, semester, section, email_id, uploaded_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW())
+             ON CONFLICT (usn) DO UPDATE SET
+               name = EXCLUDED.name, batch = EXCLUDED.batch,
+               semester = EXCLUDED.semester, section = EXCLUDED.section,
+               email_id = EXCLUDED.email_id, uploaded_at = NOW()`,
+            [s.usn, s.name, s.batch, semester, s.section, s.email]
+          );
+        }
+        await client.query("COMMIT");
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
 
-      res.json({ success: true, semester, count: students.length });
+      const totalSkipped = Object.values(skipped).reduce((a, b) => a + b, 0);
+      if (totalSkipped > 0) {
+        console.log(`Student upload: ${totalSkipped} rows skipped`, skipped);
+      }
+      res.json({ success: true, semester, count: students.length, skipped: totalSkipped, moved });
     } catch (err) {
       console.error("Student upload error:", err);
+      if (err.code === "23505") {
+        return res.status(400).json({ error: "An email in this file already belongs to another student." });
+      }
       res.status(500).json({ error: err.message });
     }
   }
 );
 
 // GET student list for a semester (admin view)
+// Section-wise order: all of section A, then B, then C, USN order inside.
 router.get("/api/admin/students/:semester", isAdminLoggedIn, async (req, res) => {
   try {
-    const data = await StudentData.findOne({ semester: req.params.semester });
-    if (!data) return res.json({ semester: req.params.semester, students: [] });
-    res.json(data);
+    const { rows } = await pool.query(
+      `SELECT usn, name, section, batch, email_id, uploaded_at
+       FROM student WHERE semester = $1
+       ORDER BY section ASC NULLS LAST, usn ASC`,
+      [req.params.semester]
+    );
+    res.json({
+      semester: req.params.semester,
+      students: rows.map((r) => ({ name: r.name, usn: r.usn, section: r.section, batch: r.batch, email: r.email_id })),
+      uploadedAt: rows.length ? rows[0].uploaded_at : null,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -156,14 +196,11 @@ router.get("/api/admin/students/:semester", isAdminLoggedIn, async (req, res) =>
 // GET all semesters that have student data (for admin overview)
 router.get("/api/admin/students", isAdminLoggedIn, async (req, res) => {
   try {
-    const data = await StudentData.find({}, { semester: 1, uploadedAt: 1, "students": { $slice: 0 } })
-      .lean()
-      .then(docs => docs.map(d => ({ semester: d.semester, uploadedAt: d.uploadedAt, count: 0 })));
-    // Get counts separately
-    const counts = await StudentData.aggregate([
-      { $project: { semester: 1, uploadedAt: 1, count: { $size: "$students" } } }
-    ]);
-    res.json(counts);
+    const { rows } = await pool.query(
+      `SELECT semester, COUNT(*)::int AS count, MAX(uploaded_at) AS "uploadedAt"
+       FROM student GROUP BY semester ORDER BY semester`
+    );
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -172,7 +209,7 @@ router.get("/api/admin/students", isAdminLoggedIn, async (req, res) => {
 // DELETE student data for a semester
 router.delete("/api/admin/students/:semester", isAdminLoggedIn, async (req, res) => {
   try {
-    await StudentData.findOneAndDelete({ semester: req.params.semester });
+    await pool.query("DELETE FROM student WHERE semester = $1", [req.params.semester]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

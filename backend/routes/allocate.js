@@ -2,7 +2,6 @@
 
 const express = require("express");
 const xlsx = require("xlsx");
-const StudentData = require("../models/StudentData");
 const Allocation = require("../models/Allocation");
 const { pool } = require("../config/postgres");
 const upload = require("../middleware/upload");
@@ -13,7 +12,7 @@ const router = express.Router();
 // ============================================================
 // MAIN ALLOCATION ROUTE
 // POST /api/allocate
-// Students fetched from DB (StudentData). Legacy file upload still supported.
+// Students fetched from the Postgres student table. Legacy file upload still supported.
 // ============================================================
 
 router.post(
@@ -90,9 +89,14 @@ router.post(
         const semester = course.semester;
         const groupKey = `${idx}_${semester}`;
 
-        const dbData = await StudentData.findOne({ semester });
-        if (dbData && dbData.students && dbData.students.length > 0) {
-          courseStudents[groupKey] = dbData.students.map((s) => ({ name: s.name, usn: s.usn }));
+        // Section-wise order: all of section A, then B, then C, USN inside.
+        const { rows } = await pool.query(
+          `SELECT usn, name, section FROM student WHERE semester = $1
+           ORDER BY section ASC NULLS LAST, usn ASC`,
+          [semester]
+        );
+        if (rows.length > 0) {
+          courseStudents[groupKey] = rows.map((r) => ({ name: r.name, usn: r.usn, section: r.section }));
           console.log(`📚 Loaded ${courseStudents[groupKey].length} students for Sem ${semester} from DB`);
         } else if (hasFiles) {
           const file = req.files.find((f) => f.fieldname === `course_file_${idx}`);

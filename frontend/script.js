@@ -325,7 +325,10 @@ document.addEventListener("change", (e) => {
   if (e.target.id === "student-upload-file") {
     const nameEl = document.getElementById("student-upload-file-name");
     if (e.target.files.length > 0) {
-      nameEl.textContent = `${ICONS.file} ${e.target.files[0].name}`;
+      // The icon is markup, so it goes in as HTML; the file name goes in
+      // as text, so a strange file name can never break the page.
+      nameEl.innerHTML = `${ICONS.file} `;
+      nameEl.appendChild(document.createTextNode(e.target.files[0].name));
     }
   }
 });
@@ -353,7 +356,7 @@ async function uploadStudentData() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    msgEl.textContent = `✅ Uploaded ${data.count} students for Semester ${semester}.`;
+    msgEl.textContent = `✅ Uploaded ${data.count} students for Semester ${semester}.` + (data.skipped ? ` (${data.skipped} rows skipped — see the server log.)` : "") + (data.moved ? ` ${data.moved} moved here from another semester.` : "");
     msgEl.style.color = "var(--success)";
     fileInput.value = "";
     document.getElementById("student-upload-file-name").textContent = "";
@@ -364,33 +367,82 @@ async function uploadStudentData() {
   }
 }
 
+const selectedSemesters = new Set();
+let adminStudents = [];
+
 async function loadAdminStudents() {
   const tbody = document.getElementById("student-data-tbody");
-  tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">Loading...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">Loading...</td></tr>';
   try {
     const res = await fetch(`${API}/api/admin/students`, { credentials: "include" });
     const data = await res.json();
-    if (!data || data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-cell">No student data uploaded yet.</td></tr>';
-      return;
+    if (!res.ok) throw new Error(data.error || "Could not load student data.");
+    adminStudents = Array.isArray(data) ? data : [];
+    // Drop selections for semesters that no longer exist.
+    const sems = new Set(adminStudents.map((d) => d.semester));
+    for (const s of [...selectedSemesters]) {
+      if (!sems.has(s)) selectedSemesters.delete(s);
     }
-    tbody.innerHTML = data
-      .sort((a, b) => {
-        const order = ["I","II","III","IV","V","VI","VII","VIII"];
-        return order.indexOf(a.semester) - order.indexOf(b.semester);
-      })
+    renderAdminStudents();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">Error: ${err.message}</td></tr>`;
+  }
+}
+
+function renderAdminStudents() {
+  const tbody = document.getElementById("student-data-tbody");
+  if (adminStudents.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-cell">No student data uploaded yet.</td></tr>';
+  } else {
+    const order = ["I","II","III","IV","V","VI","VII","VIII"];
+    tbody.innerHTML = [...adminStudents]
+      .sort((a, b) => order.indexOf(a.semester) - order.indexOf(b.semester))
       .map((d) => `
         <tr>
+          <td><input type="checkbox" class="student-checkbox" ${selectedSemesters.has(d.semester) ? "checked" : ""} onchange="toggleStudentSelection('${d.semester}', this.checked)" /></td>
           <td><strong>Semester ${d.semester}</strong></td>
           <td>${d.count} students</td>
-          <td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : "—"}</td>
+          <td>${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString("en-GB") : "—"}</td>
           <td>
             <button class="btn-danger" onclick="deleteStudentData('${d.semester}')">Delete</button>
           </td>
         </tr>`).join("");
-  } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">Error: ${err.message}</td></tr>`;
   }
+  updateStudentSelectionUI();
+}
+
+function toggleStudentSelection(semester, checked) {
+  if (checked) selectedSemesters.add(semester);
+  else selectedSemesters.delete(semester);
+  updateStudentSelectionUI();
+}
+
+function toggleSelectAllStudents(checked) {
+  adminStudents.forEach((d) => {
+    if (checked) selectedSemesters.add(d.semester);
+    else selectedSemesters.delete(d.semester);
+  });
+  renderAdminStudents();
+}
+
+function updateStudentSelectionUI() {
+  const count = selectedSemesters.size;
+  const btn = document.getElementById("delete-selected-students");
+  btn.style.display = count > 0 ? "" : "none";
+  btn.textContent = `Delete selected (${count})`;
+  const headerCb = document.getElementById("select-all-students");
+  headerCb.checked = adminStudents.length > 0 && adminStudents.every((d) => selectedSemesters.has(d.semester));
+}
+
+async function deleteSelectedStudents() {
+  const sems = [...selectedSemesters];
+  if (sems.length === 0) return;
+  if (!await showConfirm(`Delete all student data for ${sems.length} semester${sems.length === 1 ? "" : "s"}?`, { title: "Delete Student Data", confirmLabel: "Delete", danger: true })) return;
+  for (const sem of sems) {
+    await fetch(`${API}/api/admin/students/${encodeURIComponent(sem)}`, { method: "DELETE", credentials: "include" });
+  }
+  selectedSemesters.clear();
+  loadAdminStudents();
 }
 
 async function deleteStudentData(semester) {
