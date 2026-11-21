@@ -43,12 +43,14 @@ router.post(
           courseName: c.courseName || "",
           courseCode: c.courseCode || "",
           semester: c.semester || "",
+          examName: c.examName || "",
         }));
       } else if (req.body.courses && typeof req.body.courses === "object") {
         courses = [{
           courseName: req.body.courses.courseName || "",
           courseCode: req.body.courses.courseCode || "",
           semester: req.body.courses.semester || "",
+          examName: req.body.courses.examName || "",
         }];
       } else {
         let i = 0;
@@ -57,6 +59,7 @@ router.post(
             courseName: req.body[`courses[${i}][courseName]`] || "",
             courseCode: req.body[`courses[${i}][courseCode]`] || "",
             semester: req.body[`courses[${i}][semester]`] || "",
+            examName: req.body[`courses[${i}][examName]`] || "",
           });
           i++;
         }
@@ -66,6 +69,16 @@ router.post(
 
       if (courses.length === 0) {
         return res.status(400).json({ error: "At least one course entry is required." });
+      }
+
+      // Each course entry must carry its own exam name (entry 1 copies the top-level Exam Name)
+      for (let i = 0; i < courses.length; i++) {
+        if (!courses[i].examName || !courses[i].examName.trim()) {
+          return res.status(400).json({
+            error: `Exam name is required for course entry ${i + 1}.`,
+          });
+        }
+        courses[i].examName = courses[i].examName.trim();
       }
 
       // --- Build student groups from DB (with legacy file fallback) ---

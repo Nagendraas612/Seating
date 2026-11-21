@@ -891,6 +891,13 @@ function buildCourseEntryHTML(idx) {
         ${ICONS.upload} Upload File <span class="elective-tag">Open Elective</span>
       </button>
     </div>
+    <!-- Exam name for this entry (added entries only; entry 1 uses the top-level Exam Name) -->
+    <div class="form-row">
+      <div class="form-group">
+        <label>Exam Name</label>
+        <input type="text" class="course-exam-name" placeholder="e.g. CIE-III" />
+      </div>
+    </div>
     <div class="course-db-fields">
       <div class="form-row">
         <div class="form-group">
@@ -1004,6 +1011,12 @@ async function submitAllocation(event) {
   // Validate each entry based on its mode
   for (const entry of courseEntries) {
     const mode = entry.dataset.mode || "db";
+    // Added entries carry their own exam name; entry 1 uses the top-level Exam Name
+    const examNameInput = entry.querySelector(".course-exam-name");
+    if (examNameInput && !examNameInput.value.trim()) {
+      await showAlert("Please enter an exam name for each added course entry.", { type: "warning", title: "Missing Fields" });
+      return;
+    }
     if (mode === "db") {
       const semester = entry.querySelector(".course-semester").value;
       const courseName = entry.querySelector(".course-name").value;
@@ -1035,6 +1048,11 @@ async function submitAllocation(event) {
 
     courseEntries.forEach((entry, idx) => {
       const mode = entry.dataset.mode || "db";
+
+      // Per-course exam name: entry 1 uses the top-level Exam Name, added entries use their own field
+      const examNameInput = entry.querySelector(".course-exam-name");
+      const courseExamName = examNameInput ? examNameInput.value.trim() : examName;
+      formData.append(`courses[${idx}][examName]`, courseExamName);
 
       if (mode === "db") {
         formData.append(`courses[${idx}][courseName]`, entry.querySelector(".course-name").value.trim());

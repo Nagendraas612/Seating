@@ -15,6 +15,7 @@ const allocationSchema = new mongoose.Schema({
       courseName: String,
       courseCode: String,
       semester: String, // I, II, III, IV, V, VI, VII, VIII
+      examName: String, // Per-course exam name (e.g. CIE-II); entry 1 copies the top-level examName
     },
   ],
   rooms: [
