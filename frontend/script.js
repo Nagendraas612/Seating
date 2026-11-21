@@ -2380,6 +2380,9 @@ async function rptSelectExam(allocId) {
         '<p class="empty-state">No attendance has been marked for this exam yet. Go to Attendance page to mark it first.</p>';
       document.getElementById("rpt-tab-room").innerHTML =
         '<p class="empty-state">No attendance data available.</p>';
+      // Clear the download panel too, so the previous exam's buttons
+      // don't stay behind when this exam has no attendance yet.
+      document.getElementById("rpt-download-buttons").innerHTML = "";
       return;
     }
 
@@ -2484,7 +2487,6 @@ function renderCourseWiseReport(data) {
               <span class="rpt-stat present">✓ ${r.present.length} Present</span>
               <span class="rpt-stat absent">✗ ${r.absent.length} Absent</span>
               <span class="rpt-stat total">Total: ${r.total}</span>
-              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${courses.indexOf(r.course)}', '${r.course.courseName} — Absent Report')">${ICONS.file} PDF</button>
             </div>
           </div>
           ${r.absent.length > 0 ? `
@@ -2544,7 +2546,6 @@ function renderRoomWiseReport(data) {
               <span class="rpt-stat present">✓ ${present.length}</span>
               <span class="rpt-stat absent">✗ ${absent.length}</span>
               <span class="rpt-stat total">Total: ${room.students.length}</span>
-              <button class="btn-outline" style="padding:4px 10px;font-size:12px;" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/room/${room.roomNo}', 'Room ${room.roomNo} — Absent Report')">${ICONS.file} PDF</button>
             </div>
           </div>
           ${absent.length > 0 ? absentSections : '<p style="padding:0.5rem;color:var(--success);font-size:0.9rem;">All present ✓</p>'}
@@ -2576,18 +2577,74 @@ function rptDownloadPdf() {
   openPdfPreview(`${API}/api/pdf/absent-report/${rptSelectedAllocId}`, "Absent Report PDF");
 }
 
+// Count absentees the same way the absent-report PDFs filter them, so a
+// button's count always matches the PDF it opens: per course = absent
+// students whose semester matches that course's semester; per room =
+// absent students in that room; total = all absent across marked rooms.
+function computeAbsentCounts(data) {
+  const attendance = data.attendance || [];
+  const courses = data.courses || [];
+  let total = 0;
+  const byRoom = attendance.map((room) => {
+    const absent = room.students.filter((s) => !s.present).length;
+    total += absent;
+    return { roomNo: room.roomNo, absent };
+  });
+  const byCourse = courses.map((course) => {
+    let absent = 0;
+    for (const room of attendance) {
+      for (const s of room.students) {
+        if (s.semester === course.semester && !s.present) absent++;
+      }
+    }
+    return { course, absent };
+  });
+  return { total, byRoom, byCourse };
+}
+
+// One download panel for every absent-report combination:
+// Complete (all rooms, all courses), one per course, one per room.
+// Buttons carry their absent count; a zero-absent report is greyed out
+// instead of opening an empty PDF.
 function renderReportDownloadButtons(data) {
   const container = document.getElementById("rpt-download-buttons");
-  const courses = data.courses || [];
+  const counts = computeAbsentCounts(data);
 
-  let html = `<button class="btn-primary" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}', 'Complete Absent Report')">${ICONS.file} Complete Report</button>`;
+  let html = `<div class="rpt-dl-panel">
+    <div class="rpt-dl-title">Download absent reports</div>
+    <div class="rpt-dl-group">
+      <div class="rpt-dl-label">Complete &mdash; all rooms, all courses</div>
+      <div class="rpt-dl-buttons">
+        <button class="btn-primary" ${counts.total === 0 ? "disabled" : ""} onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}', 'Complete Absent Report')">${ICONS.file} Complete absent report &mdash; ${counts.total} absent</button>
+      </div>
+    </div>`;
 
-  if (courses.length > 0) {
-    courses.forEach((course, idx) => {
-      const label = `${course.courseName} (Sem ${course.semester})`;
-      html += `<button class="btn-outline" onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${idx}', '${label} — Absent Report')">${ICONS.file} ${label}</button>`;
+  if (counts.byCourse.length > 0) {
+    html += `
+    <div class="rpt-dl-group">
+      <div class="rpt-dl-label">By course</div>
+      <div class="rpt-dl-buttons">`;
+    counts.byCourse.forEach((entry, idx) => {
+      const label = `${entry.course.courseName} (Sem ${entry.course.semester})`;
+      const title = label.replace(/'/g, "\\'");
+      html += `<button class="btn-outline" ${entry.absent === 0 ? "disabled" : ""} onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/course/${idx}', '${title} — Absent Report')">${ICONS.file} ${label} &mdash; ${entry.absent} absent</button>`;
     });
+    html += `
+      </div>
+    </div>`;
   }
+
+  html += `
+    <div class="rpt-dl-group">
+      <div class="rpt-dl-label">By room</div>
+      <div class="rpt-dl-buttons">`;
+  counts.byRoom.forEach((room) => {
+    html += `<button class="btn-outline" ${room.absent === 0 ? "disabled" : ""} onclick="openPdfPreview('${API}/api/pdf/absent-report/${rptSelectedAllocId}/room/${room.roomNo}', 'Room ${room.roomNo} — Absent Report')">${ICONS.file} Room ${room.roomNo} &mdash; ${room.absent} absent</button>`;
+  });
+  html += `
+      </div>
+    </div>
+  </div>`;
 
   container.innerHTML = html;
 }

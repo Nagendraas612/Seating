@@ -2897,3 +2897,48 @@ select:focus-visible {
     margin-bottom: 0;
   }
 }
+
+/* ============================================================
+   REPORTS — DOWNLOAD ABSENT REPORTS PANEL
+   One panel, three groups: Complete / By course / By room.
+   ============================================================ */
+
+.rpt-dl-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+}
+
+.rpt-dl-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.rpt-dl-group + .rpt-dl-group {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.rpt-dl-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.rpt-dl-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rpt-dl-buttons button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
