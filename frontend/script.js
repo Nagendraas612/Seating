@@ -739,6 +739,7 @@ async function loadRooms() {
   try {
     const res = await fetch(`${API}/api/rooms`, { credentials: "include" });
     const rooms = await res.json();
+    if (!res.ok) throw new Error(rooms.error || "Could not load rooms.");
 
     if (!rooms || rooms.length === 0) {
       tbody.innerHTML =
@@ -759,17 +760,18 @@ async function loadRooms() {
           </span>
         </td>
         <td style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn-edit" onclick="openEditModal('${room._id}','${room.roomNo}',${room.benches},${room.enabled})">Edit</button>
-          <button class="btn-toggle ${room.enabled ? "" : "disabled"}" onclick="toggleRoom('${room._id}', ${room.enabled}, '${room.roomNo}', ${room.benches})">
+          <button class="btn-edit" onclick="openEditModal('${room.room_number}','${room.roomNo}',${room.benches},${room.enabled})">Edit</button>
+          <button class="btn-toggle ${room.enabled ? "" : "disabled"}" onclick="toggleRoom('${room.room_number}', ${room.enabled}, '${room.roomNo}', ${room.benches})">
             ${room.enabled ? "Disable" : "Enable"}
           </button>
-          <button class="btn-danger" onclick="deleteRoom('${room._id}')">Delete</button>
+          <button class="btn-danger" onclick="deleteRoom('${room.room_number}')">Delete</button>
         </td>
       </tr>`
       )
       .join("");
   } catch (err) {
     console.error("Load rooms error:", err);
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-cell">Error: ${err.message}</td></tr>`;
   }
 }
 
@@ -827,7 +829,7 @@ async function saveRoom() {
   const enabled = document.getElementById("edit-room-enabled").value === "true";
 
   try {
-    const res = await fetch(`${API}/api/rooms/${id}`, {
+    const res = await fetch(`${API}/api/rooms/${encodeURIComponent(id)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -847,7 +849,7 @@ async function saveRoom() {
 // Quick toggle enable/disable
 async function toggleRoom(id, currentEnabled, roomNo, benches) {
   try {
-    await fetch(`${API}/api/rooms/${id}`, {
+    await fetch(`${API}/api/rooms/${encodeURIComponent(id)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -867,7 +869,7 @@ async function toggleRoom(id, currentEnabled, roomNo, benches) {
 async function deleteRoom(id) {
   if (!await showConfirm("Are you sure you want to delete this room?", { title: "Delete Room", confirmLabel: "Delete", danger: true })) return;
   try {
-    await fetch(`${API}/api/rooms/${id}`, {
+    await fetch(`${API}/api/rooms/${encodeURIComponent(id)}`, {
       method: "DELETE",
       credentials: "include",
     });

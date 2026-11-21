@@ -3,7 +3,6 @@
 const express = require("express");
 const PDFDocument = require("pdfkit");
 const Allocation = require("../models/Allocation");
-const Room = require("../models/Room");
 const { isLoggedIn } = require("../middleware/auth");
 const { writePDFHeader, writeCollegeHeader, renderClassroom, buildNoticeData } = require("../utils/pdf");
 const router = express.Router();

@@ -2,7 +2,6 @@
 
 const express = require("express");
 const xlsx = require("xlsx");
-const Room = require("../models/Room");
 const StudentData = require("../models/StudentData");
 const { pool } = require("../config/postgres");
 const upload = require("../middleware/upload");
@@ -13,14 +12,28 @@ const router = express.Router();
 // ROOM MANAGEMENT ROUTES
 // ============================================================
 
+// --- Room rows are mapped to the API shape the frontend uses ---
+// Postgres columns are snake_case; the API answers stay camelCase.
+// The room number IS the key now (room_number) — there is no Mongo _id.
+function toRoomApi(row) {
+  return {
+    room_number: row.room_number,
+    roomNo: row.room_number,
+    benches: row.number_of_benches,
+    enabled: row.is_enabled,
+  };
+}
+
 // GET all rooms — accessible by both faculty (Google) and admin
 router.get("/api/rooms", async (req, res) => {
   if (!req.isAuthenticated() && !(req.session && req.session.adminUser)) {
     return res.status(401).json({ error: "Unauthorized." });
   }
   try {
-    const rooms = await Room.find().sort({ roomNo: 1 });
-    res.json(rooms);
+    const { rows } = await pool.query(
+      "SELECT room_number, number_of_benches, is_enabled FROM room ORDER BY room_number"
+    );
+    res.json(rows.map(toRoomApi));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -30,33 +43,49 @@ router.get("/api/rooms", async (req, res) => {
 router.post("/api/rooms", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
-    const room = new Room({ roomNo, benches: Number(benches), enabled });
-    await room.save();
-    res.json({ message: "Room added", room });
+    if (!roomNo || benches === undefined || benches === null || benches === "") {
+      return res.status(400).json({ error: "roomNo and benches are required." });
+    }
+    const { rows } = await pool.query(
+      "INSERT INTO room (room_number, number_of_benches, is_enabled) VALUES ($1, $2, $3) RETURNING room_number, number_of_benches, is_enabled",
+      [roomNo.trim(), Number(benches), enabled === undefined ? true : enabled]
+    );
+    res.json({ message: "Room added", room: toRoomApi(rows[0]) });
   } catch (err) {
+    if (err.code === "23505") {
+      return res.status(400).json({ error: "A room with this number already exists." });
+    }
     res.status(400).json({ error: err.message });
   }
 });
 
-// PUT update a room (admin only)
+// PUT update a room (admin only) — :id is the room number, which can itself change.
 router.put("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
     const { roomNo, benches, enabled } = req.body;
-    const room = await Room.findByIdAndUpdate(
-      req.params.id,
-      { roomNo, benches: Number(benches), enabled },
-      { new: true }
+    if (!roomNo || benches === undefined || benches === null || benches === "") {
+      return res.status(400).json({ error: "roomNo and benches are required." });
+    }
+    const { rows } = await pool.query(
+      "UPDATE room SET room_number = $1, number_of_benches = $2, is_enabled = $3 WHERE room_number = $4 RETURNING room_number, number_of_benches, is_enabled",
+      [roomNo.trim(), Number(benches), enabled, req.params.id]
     );
-    res.json({ message: "Room updated", room });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Room not found." });
+    }
+    res.json({ message: "Room updated", room: toRoomApi(rows[0]) });
   } catch (err) {
+    if (err.code === "23505") {
+      return res.status(400).json({ error: "A room with this number already exists." });
+    }
     res.status(400).json({ error: err.message });
   }
 });
 
-// DELETE a room (admin only)
+// DELETE a room (admin only) — :id is the room number.
 router.delete("/api/rooms/:id", isAdminLoggedIn, async (req, res) => {
   try {
-    await Room.findByIdAndDelete(req.params.id);
+    await pool.query("DELETE FROM room WHERE room_number = $1", [req.params.id]);
     res.json({ message: "Room deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });

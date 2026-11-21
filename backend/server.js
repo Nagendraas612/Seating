@@ -62,7 +62,7 @@ require("./config/database");
 // MONGODB SCHEMAS & MODELS
 // ============================================================
 
-require("./models/Room");
+// Room is gone — rooms live in Postgres now (Stage 2).
 require("./models/Allocation");
 require("./models/AdminUser");
 require("./models/StudentData");

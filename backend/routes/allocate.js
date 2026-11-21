@@ -3,8 +3,8 @@
 const express = require("express");
 const xlsx = require("xlsx");
 const StudentData = require("../models/StudentData");
-const Room = require("../models/Room");
 const Allocation = require("../models/Allocation");
+const { pool } = require("../config/postgres");
 const upload = require("../middleware/upload");
 const { isLoggedIn } = require("../middleware/auth");
 const { allocateSeats, buildSummary, buildAttendance } = require("../services/seating");
@@ -132,7 +132,12 @@ router.post(
       console.log(`✅ Student groups:`, Object.entries(courseStudents).map(([k, v]) => ({ group: k, count: v.length })));
 
       // --- Fetch enabled rooms from DB, sorted ---
-      const rooms = await Room.find({ enabled: true }).sort({ roomNo: 1 });
+      // The seating service expects { roomNo, benches }, so the rows are
+      // mapped to that shape — same as the old Mongo documents.
+      const { rows } = await pool.query(
+        "SELECT room_number, number_of_benches FROM room WHERE is_enabled = true ORDER BY room_number"
+      );
+      const rooms = rows.map((r) => ({ roomNo: r.room_number, benches: r.number_of_benches }));
       if (rooms.length === 0) {
         return res.status(400).json({ error: "No enabled rooms found. Please ask admin to add rooms first." });
       }
